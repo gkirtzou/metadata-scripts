@@ -1,5 +1,6 @@
 import lxml.etree as etree
 import rdflib
+import ConfigParser
 
 
 def recursiveFunction(element, uriResource, rdfGraph):
@@ -54,65 +55,62 @@ def recursiveFunction(element, uriResource, rdfGraph):
         recursiveFunction(element, c.identifier, rdfGraph)
     return
 
-# Read xsd file
-tree = etree.parse('OMTD-SHARE-ControlledVocabs.xsd')
-root = tree.getroot()
-# print etree.tostring(root, pretty_print=True)
 
-# Declaring namespace
-xs = 'http://www.w3.org/2001/XMLSchema'
-xml = 'xml'
+if __name__ == '__main__':
+    Config = ConfigParser.ConfigParser()
+    Config.read('owl2xml.ini')
 
-# Declaring target namespace info
-target_ns = 'http://www.meta-share.org/OMTD-SHARE_XMLSchema'
-target_version = '3.0.1'
+    filename_xsd = Config.get('Input', 'filename_xsd')
+    filename_owl = Config.get('Input', 'filename_owl')
+    filename_xsd_updated = Config.get('Output', 'filename_xsd_updated')
+    mapping = Config.items('Mapping')
+    for key, path in mapping:
+        print key + ' - ' + path
+        # Read xsd file
+    tree = etree.parse(filename_xsd)
+    root = tree.getroot()
+    # print etree.tostring(root, pretty_print=True)
 
+    # Declaring namespace
+    xs = 'http://www.w3.org/2001/XMLSchema'
+    xml = 'xml'
 
-# Create xsd root element
-# root = etree.Element(etree.QName(xs, 'schema'),
-#                     nsmap={'ms': target_ns, 'xs': xs})
-# root.attrib[etree.QName('targerNamespace')] = target_ns
-# root.attrib[etree.QName('elementFormDefault')] = 'qualified'
-# root.attrib[etree.QName('attributeFormDefault')] = 'unqualified'
-# root.attrib[etree.QName('version')] = target_version
-# root.attrib[etree.QName(xml, 'lang')] = 'en'
+    # Read OWL ontology file
+    rdfGraph = rdflib.Graph()
+    result = rdfGraph.parse(filename_owl,
+                            format="application/rdf+xml")
 
+    for element in root.iter(etree.QName(xs, 'simpleType').text):
+        print("%s - %s" % (element.tag, element.attrib['name']))
+        subelement = list(element.iter(etree.QName(xs, 'restriction').text))
+        assert len(subelement) == 1
+        subelement = subelement[0]
+        uriResources = []
+        # Get RDF Class
+        if element.attrib['name'] == 'dataFormatType':
+            uriResources.append(
+                'http://w3id.org/meta-share/omtd-share/DataFormat')
+        elif element.attrib['name'] == 'annotationTypeType':
+            uriResources.append(
+                'http://w3id.org/meta-share/omtd-share/AnnotationType')
+        elif element.attrib['name'] == 'TDMMethodType':
+            uriResources.append(
+                'http://w3id.org/meta-share/omtd-share/TdmMethod')
+        elif element.attrib['name'] == 'operationType':
+            uriResources.append(
+                'http://w3id.org/meta-share/omtd-share/ComponentType')
+            uriResources.append(
+                'http://w3id.org/meta-share/omtd-share/Annotation')
+            uriResources.append(
+                'http://w3id.org/meta-share/omtd-share/TextAndDataMining')
+        else:
+            continue
+        for uriResource in uriResources:
+            recursiveFunction(subelement, uriResource, rdfGraph)
 
-# Read OWL ontology file
-rdfGraph = rdflib.Graph()
-result = rdfGraph.parse("omtd-share-tdm-ontology.rdf",
-                        format="application/rdf+xml")
-print('graph has %s statements.' % len(rdfGraph))
+    # print etree.tostring(root, pretty_print=True)
 
-for element in root.iter(etree.QName(xs, 'simpleType').text):
-    print("%s - %s" % (element.tag, element.attrib['name']))
-    subelement = list(element.iter(etree.QName(xs, 'restriction').text))
-    assert len(subelement) == 1
-    subelement = subelement[0]
-    uriResources = []
-    # Get RDF Class
-    if element.attrib['name'] == 'dataFormatType':
-        uriResources.append('http://w3id.org/meta-share/omtd-share/DataFormat')
-    elif element.attrib['name'] == 'annotationTypeType':
-        uriResources.append(
-            'http://w3id.org/meta-share/omtd-share/AnnotationType')
-    elif element.attrib['name'] == 'TDMMethodType':
-        uriResources.append('http://w3id.org/meta-share/omtd-share/TdmMethod')
-    elif element.attrib['name'] == 'operationType':
-        uriResources.append(
-            'http://w3id.org/meta-share/omtd-share/ComponentType')
-        uriResources.append('http://w3id.org/meta-share/omtd-share/Annotation')
-        uriResources.append(
-            'http://w3id.org/meta-share/omtd-share/TextAndDataMining')
-    else:
-        continue
-    for uriResource in uriResources:
-        recursiveFunction(subelement, uriResource, rdfGraph)
-
-
-# print etree.tostring(root, pretty_print=True)
-
-# Print xml
-fileXML = open("foo.xsd", 'w')
-fileXML.write(etree.tostring(root, pretty_print=True))
-fileXML.close()
+    # Print xml
+    #fileXML = open(filename_xsd_updated, 'w')
+    #fileXML.write(etree.tostring(root, pretty_print=True))
+    # fileXML.close()

@@ -1,6 +1,7 @@
 import lxml.etree as etree
 import rdflib
 import ConfigParser
+import ast
 
 
 def recursiveFunction(element, uriResource, rdfGraph):
@@ -64,9 +65,8 @@ if __name__ == '__main__':
     filename_owl = Config.get('Input', 'filename_owl')
     filename_xsd_updated = Config.get('Output', 'filename_xsd_updated')
     mapping = Config.items('Mapping')
-    for key, path in mapping:
-        print key + ' - ' + path
-        # Read xsd file
+
+    # Read xsd file
     tree = etree.parse(filename_xsd)
     root = tree.getroot()
     # print etree.tostring(root, pretty_print=True)
@@ -85,32 +85,22 @@ if __name__ == '__main__':
         subelement = list(element.iter(etree.QName(xs, 'restriction').text))
         assert len(subelement) == 1
         subelement = subelement[0]
+
+        # Get mapping xsd elements to RDF Classes
         uriResources = []
-        # Get RDF Class
-        if element.attrib['name'] == 'dataFormatType':
-            uriResources.append(
-                'http://w3id.org/meta-share/omtd-share/DataFormat')
-        elif element.attrib['name'] == 'annotationTypeType':
-            uriResources.append(
-                'http://w3id.org/meta-share/omtd-share/AnnotationType')
-        elif element.attrib['name'] == 'TDMMethodType':
-            uriResources.append(
-                'http://w3id.org/meta-share/omtd-share/TdmMethod')
-        elif element.attrib['name'] == 'operationType':
-            uriResources.append(
-                'http://w3id.org/meta-share/omtd-share/ComponentType')
-            uriResources.append(
-                'http://w3id.org/meta-share/omtd-share/Annotation')
-            uriResources.append(
-                'http://w3id.org/meta-share/omtd-share/TextAndDataMining')
-        else:
+        try:
+            uriResources = ast.literal_eval(Config.get(
+                'Mapping', element.attrib['name']))
+        except ConfigParser.NoOptionError:
             continue
+
+        print "Element " + element.attrib['name'] + " is mapped to " + str(uriResources)
         for uriResource in uriResources:
             recursiveFunction(subelement, uriResource, rdfGraph)
 
     # print etree.tostring(root, pretty_print=True)
 
     # Print xml
-    #fileXML = open(filename_xsd_updated, 'w')
-    #fileXML.write(etree.tostring(root, pretty_print=True))
-    # fileXML.close()
+    fileXML = open(filename_xsd_updated, 'w')
+    fileXML.write(etree.tostring(root, pretty_print=True))
+    fileXML.close()

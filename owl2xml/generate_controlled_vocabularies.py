@@ -59,7 +59,7 @@ def recursiveFunction(element, uriResource, rdfGraph):
 
 if __name__ == '__main__':
     Config = ConfigParser.ConfigParser()
-    Config.read('owl2xml.ini')
+    Config.read('generate_controlled_vocabularies.ini')
 
     filename_xsd = Config.get('Input', 'filename_xsd')
     filename_owl = Config.get('Input', 'filename_owl')

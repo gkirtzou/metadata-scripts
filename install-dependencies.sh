@@ -2,7 +2,7 @@
 
 CURRENTDIR=$(pwd)
 BASEDIR=$(cd $(dirname .gitignore) ; pwd)
-echo "This will install dependencies required by xsd_owl_communication project."
+echo "This will install dependencies required by project."
 echo "Checking python version..."
 
 EXPECTED_PYTHON_VERSION="Python 2.7"
@@ -61,10 +61,10 @@ rm -rf "virtualenv-${VENV_VERSION}" "virtualenv-${VENV_VERSION}.tar.gz"
 
 echo "Python virtual environment created"
 
-echo "Install metashare python dependencies"
+echo "Install dependencies"
 "${VENV_DIR}/bin/pip" install -r "${BASEDIR}/requirements.txt" || exit 1
 
 echo
 echo
-echo "Installation of xsd_owl_communication dependencies complete."
+echo "Installation of dependencies complete."
 

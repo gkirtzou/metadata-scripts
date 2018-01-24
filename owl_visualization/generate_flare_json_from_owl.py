@@ -5,14 +5,15 @@ import jsonpickle
 
 class Flare:
 
-    def __init__(self, label, URI):
+    def __init__(self, label, URI, definition):
         self.name = label
         self.URI = URI
+        self.definition = definition
         self.children = []
 
     def __str__(self):
-        str_representation = "name=%s URI=%s children=[" % (
-            self.name, self.URI)
+        str_representation = "name=%s URI=%s definition=%s children=[" % (
+            self.name, self.URI, self.definition)
         for child in self.children:
             str_representation = str_representation + str(child) + ', '
         str_representation = str_representation + ']'
@@ -20,6 +21,33 @@ class Flare:
 
     def add_child(self, child):
         self.children.append(child)
+
+
+def createFlareObj(workingClassURI, rdfGraph):
+    print 'Working with class:', workingClassURI
+    workingClass = rdfGraph.resource(workingClassURI)
+    # Create flare object for the working OWL class
+    wcName = workingClass.label().encode('utf-8')
+    wcURI = workingClassURI.encode('utf-8')
+    wcDefinition = workingClass.comment().encode('utf-8')
+    # print wcDefinition
+    flare_obj = Flare(wcName, wcURI, wcDefinition)
+    # print(flare_obj)
+
+    # Get working OWL class subclasses
+    query = "SELECT DISTINCT ?c  WHERE { ?c a owl:Class. ?c rdfs:subClassOf <%s>}" % workingClassURI
+    qres = rdfGraph.query(query)
+
+    # print len(qres)
+    for row in qres:
+        # Get subclass URI
+        workingSubClassURI = row['c']
+        # print 'Working subclass', workingSubClassURI
+        # Create subclass flare object
+        flare_obj_child = createFlareObj(workingSubClassURI, rdfGraph)
+        # Add subclass flare object to working class flare object
+        flare_obj.add_child(flare_obj_child)
+    return flare_obj
 
 
 if __name__ == '__main__':
@@ -44,40 +72,18 @@ if __name__ == '__main__':
     ontology_classes = [
         x['c'] for x in qres if 'http://w3id.org/meta-share/omtd-share/' in x['c']]
 
-    for uri in ontology_classes:
-        print "Top classes:",  uri
+    flare_root = Flare('OWL-Thing', '', '')
+    # For each OWL Thing subclass, ie workingClass
+    for workingClassURI in ontology_classes:
+        print workingClassURI.encode('utf-8')
+        flare_obj = createFlareObj(workingClassURI, rdfGraph)
+        flare_root.add_child(flare_obj)
 
-    workingClassURI = ontology_classes.pop()
-    workingClass = rdfGraph.resource(workingClassURI)
-
-    # Get working class subclasses
-    query = "SELECT DISTINCT ?c  WHERE { ?c a owl:Class. ?c rdfs:subClassOf <%s>}" % workingClassURI
-    print query
-    qres = rdfGraph.query(query)
-    flare_obj = Flare(str(workingClass.label()), str(workingClassURI))
-    print(flare_obj)
-
-    for s in qres:
-        workingSubClassURI = s['c']
-        print 'subclass', workingSubClassURI
-        workingSubClass = rdfGraph.resource(workingSubClassURI)
-        flare_obj_child = Flare(
-            str(workingSubClass.label()), str(workingSubClassURI))
-        print('Str print:', str(flare_obj_child))
-        print('Json print:', jsonpickle.encode(flare_obj_child))
-        flare_obj.add_child(flare_obj_child)
-
-    print(flare_obj)
-    print(jsonpickle.encode(flare_obj))
-    # # Export to json
-    # f1 = Flare('label1', 'URI1')
-    # f11 = Flare('label11', 'URI11')
-    # f12 = Flare('label12', 'URI12')
-    # f1.add_child(f11)
-    # f1.add_child(f12)
-
-    # print(jsonpickle.encode(f1, make_refs=False))
-    json_data = jsonpickle.encode(flare_obj)
-    output = open('data.txt', 'w')
+    # print(flare_root)
+    # print(jsonpickle.encode(flare_root))
+    # Export to json
+    print('Exporting to file:', filename_json)
+    json_data = jsonpickle.encode(flare_root)
+    output = open(filename_json, 'w')
     output.write(json_data)
     output.close()

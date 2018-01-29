@@ -12,7 +12,7 @@ var tree = d3.layout.tree()
 var diagonal = d3.svg.diagonal()
     .projection(function(d) { return [d.y, d.x]; });
 
-var svg = d3.select("body").append("svg")
+var svg =  d3.select("#tree-container").append("svg") // d3.select("body").append("svg")
     .attr("width", width + margin.right + margin.left)
     .attr("height", height + margin.top + margin.bottom)
     .append("g")
@@ -20,7 +20,7 @@ var svg = d3.select("body").append("svg")
 
 // Read json file
 // flare.json example file
-d3.json("omtd-share-tdm-ontology-visualization.json", function(error, flare) {
+d3.json("resources/CollapsibleTreeVisualization/omtd-share-tdm-ontology-visualization.json", function(error, flare) {
   if (error) throw error;
 
   root = flare;
@@ -42,6 +42,7 @@ d3.json("omtd-share-tdm-ontology-visualization.json", function(error, flare) {
 
 d3.select(self.frameElement).style("height", "800px");
 
+/*
 var tip = d3.tip()
     .attr('class', 'd3-tip')
     .offset([-10, 0])
@@ -51,7 +52,7 @@ var tip = d3.tip()
 });
 
 svg.call(tip);
-
+*/
 
 function update(source) {
 
@@ -71,9 +72,9 @@ function update(source) {
   var nodeEnter = node.enter().append("g")
       .attr("class", "node")
       .attr("transform", function(d) { return "translate(" + source.y0 + "," + source.x0 + ")"; })
-      .on("click", click)
-      .on('mouseover', tip.show)
-      .on('mouseout', tip.hide);
+      .on("click", click);
+    //  .on('mouseover', tip.show)
+    //  .on('mouseout', tip.hide);
     
     
   nodeEnter.append("circle")

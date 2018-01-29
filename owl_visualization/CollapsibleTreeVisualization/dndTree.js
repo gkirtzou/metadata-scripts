@@ -31,7 +31,8 @@ EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 
 // Get JSON data
 // flare.json example file
-treeJSON = d3.json("omtd-share-tdm-ontology-visualization.json", function(error, treeData) {
+treeJSON = d3.json("resources/CollapsibleTreeVisualization/omtd-share-tdm-ontology-visualization.json", function(error, treeData) {
+
 
     // Calculate total nodes, max label length
     var totalNodes = 0;
@@ -48,11 +49,13 @@ treeJSON = d3.json("omtd-share-tdm-ontology-visualization.json", function(error,
     var root;
 
     // size of the diagram
-    var viewerWidth = $(document).width();
-    var viewerHeight = $(document).height();
-
+    var margin = {top: 20, right: 120, bottom: 20, left: 120};
+    var viewerWidth = $(document).width()- margin.right - margin.left;
+    var viewerHeight = 1000;//$(document).height();
+   
     var tree = d3.layout.tree()
         .size([viewerHeight, viewerWidth]);
+
 
     // define a d3 diagonal projection for use by the node paths later on.
     var diagonal = d3.svg.diagonal()
@@ -60,8 +63,7 @@ treeJSON = d3.json("omtd-share-tdm-ontology-visualization.json", function(error,
             return [d.y, d.x];
         });
 
-    // A recursive helper function for performing some setup by walking through all nodes
-
+    // A recursive helper function for performing some setup by walking through all nodesx
     function visit(parent, visitFn, childrenFn) {
         if (!parent) return;
 
@@ -123,7 +125,6 @@ treeJSON = d3.json("omtd-share-tdm-ontology-visualization.json", function(error,
     }
 
     // Define the zoom function for the zoomable tree
-
     function zoom() {
         svgGroup.attr("transform", "translate(" + d3.event.translate + ")scale(" + d3.event.scale + ")");
     }
@@ -175,16 +176,9 @@ treeJSON = d3.json("omtd-share-tdm-ontology-visualization.json", function(error,
         dragStarted = null;
     }
     */
-    
-    // define the baseSvg, attaching a class for styling and the zoomListener
-    var baseSvg = d3.select("#tree-container").append("svg")
-        .attr("width", viewerWidth)
-        .attr("height", viewerHeight)
-        .attr("class", "overlay")
-        .call(zoomListener);
 
 
-    // Tooltip to be displayed 
+    // Define the tooltip to be displayed 
     var tip = d3.tip()
         .attr('class', 'd3-tip')
         .offset([-10, 0])
@@ -194,9 +188,17 @@ treeJSON = d3.json("omtd-share-tdm-ontology-visualization.json", function(error,
             tooltipText = tooltipText + "<br>IRI: " + d.URI
             tooltipText = tooltipText + "<br>Definition: " + d.definition
             return tooltipText
-        });
-
-    baseSvg.call(tip);
+        }) 
+    
+    // define the baseSvg, attaching a class for styling and the zoomListener
+    var baseSvg = d3.select("#tree-container").append("svg")
+        .attr("width", viewerWidth)
+        .attr("height", viewerHeight)
+        .attr("class", "overlay")
+        .call(zoomListener)
+        .call(tip);
+    
+   // console.log('BaseSVG', baseSvg)
 
     /*
     // Define the drag listeners for drag/drop behaviour of nodes.
@@ -292,7 +294,6 @@ treeJSON = d3.json("omtd-share-tdm-ontology-visualization.json", function(error,
     }
 */
     // Helper functions for collapsing and expanding nodes.
-
     function collapse(d) {
         if (d.children) {
             d._children = d.children;
@@ -346,10 +347,10 @@ treeJSON = d3.json("omtd-share-tdm-ontology-visualization.json", function(error,
         link.exit().remove();
     };
 
-    // Function to center node when clicked/dropped so node doesn't get lost when collapsing/moving with large amount of children.
-
+    // Function to center node when clicked/dropped so node doesn't get
+    // lost when collapsing/moving with large amount of children.
     function centerNode(source) {
-        scale = zoomListener.scale();
+        scale = zoomListener.scale();      
         x = -source.y0;
         y = -source.x0;
         x = x * scale + viewerWidth / 2;
@@ -362,7 +363,6 @@ treeJSON = d3.json("omtd-share-tdm-ontology-visualization.json", function(error,
     }
 
     // Toggle children function
-
     function toggleChildren(d) {
         if (d.children) {
             d._children = d.children;
@@ -375,7 +375,6 @@ treeJSON = d3.json("omtd-share-tdm-ontology-visualization.json", function(error,
     }
 
     // Toggle children on click.
-
     function click(d) {
         if (d3.event.defaultPrevented) return; // click suppressed
         d = toggleChildren(d);
@@ -431,7 +430,7 @@ treeJSON = d3.json("omtd-share-tdm-ontology-visualization.json", function(error,
             })
             .on('click', click)
             .on('mouseover', tip.show)
-            .on('mouseout', tip.hide);
+            .on('mouseout', tip.hide);                 
 
         nodeEnter.append("circle")
             .attr('class', 'nodeCircle')
@@ -562,12 +561,16 @@ treeJSON = d3.json("omtd-share-tdm-ontology-visualization.json", function(error,
     // Append a group which holds all nodes and which the zoom Listener can act upon.
     var svgGroup = baseSvg.append("g");
 
+    //console.log('Base svg ', baseSvg);
     // Define the root
     root = treeData;
+
     root.x0 = viewerHeight / 2;
     root.y0 = 0;
 
     // Layout the tree initially and center on the root node.
     update(root);
     centerNode(root);
+  //  console.log('Root', root);
+  //  console.log('Base svg ', baseSvg);
 });

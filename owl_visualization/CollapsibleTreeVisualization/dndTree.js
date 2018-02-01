@@ -28,11 +28,10 @@ EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.*/
 
 
 
-
 // Get JSON data
 // flare.json example file
 treeJSON = d3.json("resources/CollapsibleTreeVisualization/omtd-share-tdm-ontology-visualization.json", function(error, treeData) {
-
+    //"use strict";
 
     // Calculate total nodes, max label length
     var totalNodes = 0;
@@ -49,12 +48,12 @@ treeJSON = d3.json("resources/CollapsibleTreeVisualization/omtd-share-tdm-ontolo
     var root;
 
     // size of the diagram
-    var margin = {top: 20, right: 120, bottom: 20, left: 120};
-    var viewerWidth = $(document).width()- margin.right - margin.left;
-    var viewerHeight = 1000;//$(document).height();
+    var margin = {top: 20, right: 150, bottom: 20, left: 150};
+    var treeSvgWidth = $(document).width() - margin.right;
+    var treeSvgHeight = 600;//$(document).height();
    
     var tree = d3.layout.tree()
-        .size([viewerHeight, viewerWidth]);
+        .size([treeSvgHeight, treeSvgWidth]);
 
 
     // define a d3 diagonal projection for use by the node paths later on.
@@ -98,7 +97,6 @@ treeJSON = d3.json("resources/CollapsibleTreeVisualization/omtd-share-tdm-ontolo
     sortTree();
 
     // TODO: Pan function, can be better implemented.
-
     function pan(domNode, direction) {
         var speed = panSpeed;
         if (panTimer) {
@@ -179,26 +177,25 @@ treeJSON = d3.json("resources/CollapsibleTreeVisualization/omtd-share-tdm-ontolo
 
 
     // Define the tooltip to be displayed 
-    var tip = d3.tip()
+    var mytooltip = d3.tip()
         .attr('class', 'd3-tip')
         .offset([-10, 0])
         .direction('e')
         .html(function(d) {
-            tooltipText = "<strong>Label:</strong> " + d.name
-            tooltipText = tooltipText + "<br>IRI: " + d.URI
-            tooltipText = tooltipText + "<br>Definition: " + d.definition
-            return tooltipText
+            var tooltipText = "<strong>Label:</strong> " + d.name;
+            tooltipText = tooltipText + "<br>IRI: " + d.URI;
+            tooltipText = tooltipText + "<br>Definition: " + d.definition;
+            return tooltipText;
         }) 
-    
+
     // define the baseSvg, attaching a class for styling and the zoomListener
-    var baseSvg = d3.select("#tree-container").append("svg")
-        .attr("width", viewerWidth)
-        .attr("height", viewerHeight)
+    var baseSvg = d3.select("#tree-container").append("svg")  
+        .attr("width", treeSvgWidth + "px")
+        .attr("height", treeSvgHeight + "px")
         .attr("class", "overlay")
         .call(zoomListener)
-        .call(tip);
-    
-   // console.log('BaseSVG', baseSvg)
+        .call(mytooltip);
+
 
     /*
     // Define the drag listeners for drag/drop behaviour of nodes.
@@ -350,11 +347,11 @@ treeJSON = d3.json("resources/CollapsibleTreeVisualization/omtd-share-tdm-ontolo
     // Function to center node when clicked/dropped so node doesn't get
     // lost when collapsing/moving with large amount of children.
     function centerNode(source) {
-        scale = zoomListener.scale();      
-        x = -source.y0;
-        y = -source.x0;
-        x = x * scale + viewerWidth / 2;
-        y = y * scale + viewerHeight / 2;
+        var scale = zoomListener.scale();      
+        var x = -source.y0;
+        var y = -source.x0;
+        x = x * scale + treeSvgWidth / 2;
+        y = y * scale + treeSvgHeight / 2;
         d3.select('g').transition()
             .duration(duration)
             .attr("transform", "translate(" + x + "," + y + ")scale(" + scale + ")");
@@ -400,7 +397,7 @@ treeJSON = d3.json("resources/CollapsibleTreeVisualization/omtd-share-tdm-ontolo
         };
         childCount(0, root);
         var newHeight = d3.max(levelWidth) * 25; // 25 pixels per line  
-        tree = tree.size([newHeight, viewerWidth]);
+        tree = tree.size([newHeight, treeSvgWidth]);
 
         // Compute the new tree layout.
         var nodes = tree.nodes(root).reverse(),
@@ -415,7 +412,7 @@ treeJSON = d3.json("resources/CollapsibleTreeVisualization/omtd-share-tdm-ontolo
         });
 
         // Update the nodes…
-        node = svgGroup.selectAll("g.node")
+        var node = svgGroup.selectAll("g.node")
             .data(nodes, function(d) {
                 return d.id || (d.id = ++i);
             });
@@ -429,8 +426,8 @@ treeJSON = d3.json("resources/CollapsibleTreeVisualization/omtd-share-tdm-ontolo
                 return "translate(" + source.y0 + "," + source.x0 + ")";
             })
             .on('click', click)
-            .on('mouseover', tip.show)
-            .on('mouseout', tip.hide);                 
+            .on('mouseover', mytooltip.show)
+            .on('mouseout', mytooltip.hide);                 
 
         nodeEnter.append("circle")
             .attr('class', 'nodeCircle')
@@ -561,16 +558,13 @@ treeJSON = d3.json("resources/CollapsibleTreeVisualization/omtd-share-tdm-ontolo
     // Append a group which holds all nodes and which the zoom Listener can act upon.
     var svgGroup = baseSvg.append("g");
 
-    //console.log('Base svg ', baseSvg);
     // Define the root
     root = treeData;
-
-    root.x0 = viewerHeight / 2;
+    root.x0 = treeSvgHeight / 2;
     root.y0 = 0;
 
     // Layout the tree initially and center on the root node.
     update(root);
     centerNode(root);
-  //  console.log('Root', root);
-  //  console.log('Base svg ', baseSvg);
 });
+

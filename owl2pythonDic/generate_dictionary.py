@@ -1,7 +1,13 @@
 import rdflib
 import ConfigParser
 
-def generate_dictionary(choices, uriResource, rdfGraph):
+def generate_dictionary(choices, uriResource, rdfGraph, alreadySeen):
+
+    if uriResource in alreadySeen:
+        print 'Already seen ' + uriResource
+        return
+    alreadySeen.append(uriResource)
+
     resource = rdfGraph.resource(uriResource)
     parentResources = resource.objects(rdflib.RDFS.subClassOf)
 
@@ -19,7 +25,7 @@ def generate_dictionary(choices, uriResource, rdfGraph):
         # Ignore myself resource
         if c.identifier == resource.identifier:
             continue
-        generate_dictionary(choices, c.identifier, rdfGraph)
+        generate_dictionary(choices, c.identifier, rdfGraph, alreadySeen)
     return
 
 
@@ -44,7 +50,7 @@ if __name__ == '__main__':
 
         print root_url
         choices = []
-        generate_dictionary(choices, root_url, rdfGraph)
+        generate_dictionary(choices, root_url, rdfGraph, [])
 
         fileOuput.write(m[0] + ' = (\n')
         # Print Result

@@ -4,7 +4,13 @@ import ConfigParser
 import ast
 
 
-def recursiveFunction(element, uriResource, rdfGraph):
+def recursiveFunction(element, uriResource, rdfGraph, alreadySeen):
+
+    if uriResource in alreadySeen:
+        print 'Already seen ' + uriResource
+        return
+
+    alreadySeen.append(uriResource)
     resource = rdfGraph.resource(uriResource)
     parentResources = resource.objects(rdflib.RDFS.subClassOf)
 
@@ -34,7 +40,7 @@ def recursiveFunction(element, uriResource, rdfGraph):
 
     # rdfs:subclassOf to subclassOf
     for parent in parentResources:
-        print "and has parent " + parent.identifier
+     #   print "and has parent " + parent.identifier
         if parent.identifier.startswith('http'):
             enumerationSubclassOf = etree.SubElement(
                 enumerationAppInfo, etree.QName('subclassOf'))
@@ -53,7 +59,7 @@ def recursiveFunction(element, uriResource, rdfGraph):
         # Ignore myself resource
         if c.identifier == resource.identifier:
             continue
-        recursiveFunction(element, c.identifier, rdfGraph)
+        recursiveFunction(element, c.identifier, rdfGraph, alreadySeen)
     return
 
 
@@ -96,7 +102,7 @@ if __name__ == '__main__':
 
         print "Element " + element.attrib['name'] + " is mapped to " + str(uriResources)
         for uriResource in uriResources:
-            recursiveFunction(subelement, uriResource, rdfGraph)
+            recursiveFunction(subelement, uriResource, rdfGraph, [])
 
     # print etree.tostring(root, pretty_print=True)
 

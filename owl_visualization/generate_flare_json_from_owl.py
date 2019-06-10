@@ -1,6 +1,8 @@
 import ConfigParser
 import rdflib
 import jsonpickle
+import sys
+sys.setrecursionlimit(100000)
 
 
 class Flare:
@@ -23,8 +25,7 @@ class Flare:
         self.children.append(child)
 
 
-def createFlareObj(workingClassURI, rdfGraph):
-    print 'Working with class:', workingClassURI
+def createFlareObj(workingClassURI, rdfGraph, deprecated_classes):
     workingClass = rdfGraph.resource(workingClassURI)
     # Create flare object for the working OWL class
     wcName = workingClass.label().encode('utf-8')
@@ -38,15 +39,19 @@ def createFlareObj(workingClassURI, rdfGraph):
     query = "SELECT DISTINCT ?c  WHERE { ?c a owl:Class. ?c rdfs:subClassOf <%s>}" % workingClassURI
     qres = rdfGraph.query(query)
 
-    # print len(qres)
+    print 'Working with class:', workingClassURI,  'which has ', len(qres), ' children'
     for row in qres:
         # Get subclass URI
-        workingSubClassURI = row['c']
-        # print 'Working subclass', workingSubClassURI
-        # Create subclass flare object
-        flare_obj_child = createFlareObj(workingSubClassURI, rdfGraph)
-        # Add subclass flare object to working class flare object
-        flare_obj.add_child(flare_obj_child)
+        workingSubClassURI = row['c'].encode('utf-8')
+        if workingSubClassURI in deprecated_classes:
+            print workingClassURI, ' is deprecated. Ignore'
+        else:
+            # Create subclass flare object
+            flare_obj_child = createFlareObj(
+                workingSubClassURI, rdfGraph, deprecated_classes)
+            # Add subclass flare object to working class flare object
+            flare_obj.add_child(flare_obj_child)
+
     return flare_obj
 
 
@@ -72,12 +77,27 @@ if __name__ == '__main__':
     ontology_classes = [
         x['c'] for x in qres if 'http://w3id.org/meta-share/omtd-share/' in x['c']]
 
+    # Get deprecated classes
+    qres = rdfGraph.query(
+        """ SELECT ?deprecatedClass
+            WHERE  {
+            ?deprecatedClass a owl:Class.
+            ?deprecatedClass owl:deprecated "true"^^<http://www.w3.org/2001/XMLSchema#boolean>
+        } """)
+    deprecated_classes = [
+        x['deprecatedClass'].encode('utf-8') for x in qres if 'http://w3id.org/meta-share/omtd-share/' in x['deprecatedClass']]
+    print('Deprecated classes', deprecated_classes)
+
     flare_root = Flare('OWL-Thing', '', '')
     # For each OWL Thing subclass, ie workingClass
     for workingClassURI in ontology_classes:
-        print workingClassURI.encode('utf-8')
-        flare_obj = createFlareObj(workingClassURI, rdfGraph)
-        flare_root.add_child(flare_obj)
+        if workingClassURI not in deprecated_classes:
+            print 'Working on ', workingClassURI.encode('utf-8'), ' branch'
+            flare_obj = createFlareObj(
+                workingClassURI, rdfGraph, deprecated_classes)
+            flare_root.add_child(flare_obj)
+        else:
+            print workingClassURI, ' is deprecated. Ignore'
 
     # print(flare_root)
     # print(jsonpickle.encode(flare_root))

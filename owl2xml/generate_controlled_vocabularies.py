@@ -1,20 +1,20 @@
 import lxml.etree as etree
 import rdflib
-import ConfigParser
+from configparser import ConfigParser
 import ast
 
 
 def recursiveFunction(element, uriResource, rdfGraph, alreadySeen):
 
     if uriResource in alreadySeen:
-        print 'Already seen ' + uriResource
+        print('Already seen ' + uriResource)
         return
 
     alreadySeen.append(uriResource)
     resource = rdfGraph.resource(uriResource)
     parentResources = resource.objects(rdflib.RDFS.subClassOf)
 
-    print "Working resource is " + resource.identifier
+    print("Working resource is " + resource.identifier)
     # for parent in parentResources:
     #    print "and has parent " + parent.identifier
 
@@ -64,7 +64,7 @@ def recursiveFunction(element, uriResource, rdfGraph, alreadySeen):
 
 
 if __name__ == '__main__':
-    Config = ConfigParser.ConfigParser()
+    Config = ConfigParser()
     Config.read('generate_controlled_vocabularies.ini')
 
     filename_xsd = Config.get('Input', 'filename_xsd')
@@ -86,6 +86,7 @@ if __name__ == '__main__':
     result = rdfGraph.parse(filename_owl,
                             format="application/rdf+xml")
 
+
     for element in root.iter(etree.QName(xs, 'simpleType').text):
         print("%s - %s" % (element.tag, element.attrib['name']))
         subelement = list(element.iter(etree.QName(xs, 'restriction').text))
@@ -100,7 +101,7 @@ if __name__ == '__main__':
         except ConfigParser.NoOptionError:
             continue
 
-        print "Element " + element.attrib['name'] + " is mapped to " + str(uriResources)
+        print("Element " + element.attrib['name'] + " is mapped to " + str(uriResources))
         for uriResource in uriResources:
             recursiveFunction(subelement, uriResource, rdfGraph, [])
 

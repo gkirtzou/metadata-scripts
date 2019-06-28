@@ -1,10 +1,11 @@
 import datetime
 
+from configparser import ConfigParser
 from lxml import etree
 
 # dataProp example
-from owl2xml.dummy_data import data
-from owl2xml.generate_xsd_elements import get_rdf_dict
+
+from owl2xml.generate_onto_dict import get_rdf_dict
 from xsd.namespaces import ms, xs, xml
 from xsd.xsd import Enumeration
 
@@ -79,6 +80,10 @@ def _create_annotation(parent, data_dict):
 
     return annotation
 
+def get_name(name):
+    # attrib={'name': data['name'].split(':')[1]
+    #                                                                        +f"_{data['name'].split(':')[0]}"}
+    return name.replace(':', '_')
 
 def create_data_prop(data, el_type=None):
     if el_type:
@@ -89,11 +94,9 @@ def create_data_prop(data, el_type=None):
     else:
         element_type = 'xs:string'
     if el_type == 'rdf:langString':
-        element = etree.Element('{' + xs + '}element', attrib={'name': data['name'].split(':')[1]
-                                                                       +f"_{data['name'].split(':')[0]}"})
+        element = etree.Element('{' + xs + '}element', attrib={'name': get_name(data['name'])})
     else:
-        element = etree.Element('{' + xs + '}element', attrib={'name': data['name'].split(':')[1]
-                                                                       +f"_{data['name'].split(':')[0]}",
+        element = etree.Element('{' + xs + '}element', attrib={'name': get_name(data['name']),
                                                                'type': element_type})
 
     _create_annotation(element, data)
@@ -110,12 +113,13 @@ def create_data_prop(data, el_type=None):
 
 def create_object_prop(data, el_type=None):
     if data['controlled_vocabulary']:
-        element = etree.Element('{' + xs + '}element', attrib={'name': data['name'].split(':')[1]
-                                                                       +f"_{data['name'].split(':')[0]}"})
+        element = etree.Element('{' + xs + '}element', attrib={'name': get_name(data['name'])})
     else:
-        element = etree.Element('{' + xs + '}element', attrib={'name': data['name'].split(':')[1]
-                                                                       +f"_{data['name'].split(':')[0]}",
+        if el_type:
+            element = etree.Element('{' + xs + '}element', attrib={'name': get_name(data['name']),
                                                                'type': el_type})
+        else:
+            element = etree.Element('{' + xs + '}element', attrib={'name': get_name(data['name'])})
     _create_annotation(element, data)
 
     if data['controlled_vocabulary']:
@@ -131,6 +135,7 @@ def create_object_prop(data, el_type=None):
 
 
 for d in get_rdf_dict():
+    #print(d['identifier'])
     if d['property'] == 'dataProp':
         try:
             schema.append(etree.Comment(f'Definition for {d["name"]}'))
@@ -142,12 +147,20 @@ for d in get_rdf_dict():
     elif d['property'] == 'objProp':
         try:
             schema.append(etree.Comment(f'Definition for {d["name"]}'))
-            el = create_object_prop(d, el_type=d['type'].split(':')[1])
+            if d['type']:
+                el = create_object_prop(d, el_type=get_name(d['type']))
+            else:
+                el = create_object_prop(d)
             schema.append(el)
+
+
         except KeyError:
             pass
 
-with open('onto_xsd_output.xsd', 'wb') as f:
+Config = ConfigParser()
+Config.read('generate_xsd_elements.ini')
+filename_xsd = Config.get('Output', 'filename_xsd')
+with open(filename_xsd, 'wb') as f:
     f.write(etree.tostring(schema, pretty_print=True, xml_declaration=True, encoding='UTF-8'))
 
 # print(etree.tostring(schema, pretty_print=True, encoding='unicode'))

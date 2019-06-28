@@ -1,6 +1,5 @@
 import pprint
 from configparser import ConfigParser
-
 import rdflib
 
 
@@ -44,7 +43,6 @@ def get_rdf_dict():
     Config.read('generate_xsd_elements.ini')
 
     filename_owl = Config.get('Input', 'filename_owl')
-    filename_xsd = Config.get('Output', 'filename_xsd')
 
     # Read OWL ontology file
     rdfGraph = rdflib.Graph()
@@ -54,6 +52,10 @@ def get_rdf_dict():
     pp = pprint.PrettyPrinter(indent=4)
     dict_for_xml = []
     # For DatatypeProperties
+    # data_properties_results = rdfGraph.query(
+    #     " SELECT ?p WHERE { ?p a owl:DatatypeProperty  FILTER regex(str(?p), \" "
+    #     + domain +
+    #     "\")} ORDER BY ASC(?p) ")
     data_properties_results = rdfGraph.query(
         """
         SELECT ?p
@@ -68,9 +70,7 @@ def get_rdf_dict():
         data_property['property'] = 'dataProp'
         # More thought when range is or combination
         range = resource.value(rdflib.namespace.RDFS.range)
-        ## TODO Data property with complex combined range
-
-        if range != None:
+        if range:
             try:
                 data_property['type'] = range.qname()
             except:
@@ -96,7 +96,7 @@ def get_rdf_dict():
             ci_res = rdfGraph.query(query_class_instances)
             # Case 1: CV the instances of the class range
             if len(ci_res) > 0:
-                dict_r = resource_common_elements_to_dict(range)
+                dict_r = resource_common_elements_to_dict(resource)
                 dict_r['property'] = 'objProp'
                 dict_r['type'] = range.qname()
                 dict_r['controlled_vocabulary'] = []
@@ -115,7 +115,7 @@ def get_rdf_dict():
                         ci_res = rdfGraph.query(query_class_instances)
                         dict_r = resource_common_elements_to_dict(subclass)
                         dict_r['property'] = 'objProp'
-                        dict_r['type'] = range.qname()
+                        dict_r['type'] = subclass.qname()
                         dict_r['controlled_vocabulary'] = []
                         for ci in ci_res:
                             instance = rdfGraph.resource(ci['i'])
@@ -123,7 +123,7 @@ def get_rdf_dict():
                         dict_for_xml.append(dict_r)
                 # Case 3: no CV
                 else:
-                    dict_r = resource_common_elements_to_dict(range)
+                    dict_r = resource_common_elements_to_dict(resource)
                     dict_r['property'] = 'objProp'
                     try:
                         dict_r['type'] = range.qname()
@@ -131,20 +131,8 @@ def get_rdf_dict():
                         dict_r['type'] = None
                     dict_r['controlled_vocabulary'] = []
                     dict_for_xml.append(dict_r)
-        else:
-            print(resource)
+        #else:
+        #    print(resource)
 
     return dict_for_xml
 
-    # out = open(filename_xsd, 'w')
-    # for e in dict_for_xml:
-    #     out.write(str(e) + '\n')
-    # out.close()
-
-    # r = rdfGraph.resource('http://purl.org/net/def/metashare#contactPoint').value(rdflib.namespace.RDFS.range)
-    # print(r)
-
-    #
-    #
-    # for d in dict_for_xml:
-    #     pp.pprint(d)

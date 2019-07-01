@@ -1,6 +1,8 @@
 import pprint
 from configparser import ConfigParser
 import rdflib
+import sys
+
 
 
 # import owlrl
@@ -39,6 +41,7 @@ def resource_common_elements_to_dict(resource):
 
 
 def get_rdf_dict():
+    sys.stdout = open("test.txt", "w")
     Config = ConfigParser()
     Config.read('generate_xsd_elements.ini')
 
@@ -58,7 +61,7 @@ def get_rdf_dict():
     #     "\")} ORDER BY ASC(?p) ")
     data_properties_results = rdfGraph.query(
         """
-        SELECT ?p
+        SELECT DISTINCT ?p
 	    WHERE { ?p a owl:DatatypeProperty }
 	    ORDER BY ASC(?p)
         """)
@@ -83,19 +86,21 @@ def get_rdf_dict():
     # For ObjectProperties
     obj_properties_results = rdfGraph.query(
         """
-        SELECT ?p
+        SELECT DISTINCT ?p
         WHERE { ?p a owl:ObjectProperty }
         ORDER BY ASC(?p)
         """)
 
     for res in obj_properties_results:
         resource = rdfGraph.resource(res['p'])
+        print('Working on r:', resource)
         range = resource.value(rdflib.namespace.RDFS.range)
         if range != None:
-            query_class_instances = "SELECT ?i WHERE { ?i a <" + range.identifier + ">} ORDER BY ASC(?i)"
+            query_class_instances = "SELECT DISTINCT ?i WHERE { ?i a <" + range.identifier + ">} ORDER BY ASC(?i)"
             ci_res = rdfGraph.query(query_class_instances)
             # Case 1: CV the instances of the class range
             if len(ci_res) > 0:
+                print('Case 1', resource)
                 dict_r = resource_common_elements_to_dict(resource)
                 dict_r['property'] = 'objProp'
                 dict_r['type'] = range.qname()
@@ -105,24 +110,41 @@ def get_rdf_dict():
                     dict_r['controlled_vocabulary'].append(resource_common_elements_to_dict(instance))
                 dict_for_xml.append(dict_r)
             else:
-                query_subclasses = "SELECT ?sc WHERE { ?sc rdfs:subClassOf <" + range.identifier + ">} ORDER BY ASC(?sb)"
+                query_subclasses = "SELECT DISTINCT ?sc WHERE { ?sc rdfs:subClassOf <" + range.identifier + ">} ORDER BY ASC(?sb)"
                 sc_res = rdfGraph.query(query_subclasses)
-                # Case 2: CV the instances of the classes, where classes are subclasses of class range
+
                 if len(sc_res) > 0:
+                    is_cv_case = False
                     for sc in sc_res:
                         subclass = rdfGraph.resource(sc['sc'])
-                        query_class_instances = "SELECT ?i WHERE { ?i a <" + subclass.identifier + ">} ORDER BY ASC(?i)"
+                        query_class_instances = "SELECT DISTINCT ?i WHERE { ?i a <" + subclass.identifier + ">} ORDER BY ASC(?i)"
                         ci_res = rdfGraph.query(query_class_instances)
-                        dict_r = resource_common_elements_to_dict(subclass)
+                        # Case 2: CV the instances of the classes, where classes are subclasses of class range
+                        if len(ci_res) > 0:
+                            is_cv_case = True
+                            dict_r = resource_common_elements_to_dict(subclass)
+                            print('Case 2', subclass, len(ci_res))
+                            dict_r['property'] = 'objProp'
+                            dict_r['type'] = subclass.qname()
+                            dict_r['controlled_vocabulary'] = []
+                            for ci in ci_res:
+                                instance = rdfGraph.resource(ci['i'])
+                                dict_r['controlled_vocabulary'].append(resource_common_elements_to_dict(instance))
+                            dict_for_xml.append(dict_r)
+                    # Case 3: no CV
+                    if not is_cv_case:
+                        print('Case 3.1', resource)
+                        dict_r = resource_common_elements_to_dict(resource)
                         dict_r['property'] = 'objProp'
-                        dict_r['type'] = subclass.qname()
-                        dict_r['controlled_vocabulary'] = []
-                        for ci in ci_res:
-                            instance = rdfGraph.resource(ci['i'])
-                            dict_r['controlled_vocabulary'].append(resource_common_elements_to_dict(instance))
-                        dict_for_xml.append(dict_r)
+                        try:
+                            dict_r['type'] = range.qname()
+                        except:
+                            dict_r['type'] = None
+                            dict_r['controlled_vocabulary'] = []
+                            dict_for_xml.append(dict_r)
                 # Case 3: no CV
                 else:
+                    print('Case 3.2', resource)
                     dict_r = resource_common_elements_to_dict(resource)
                     dict_r['property'] = 'objProp'
                     try:
@@ -133,6 +155,6 @@ def get_rdf_dict():
                     dict_for_xml.append(dict_r)
         #else:
         #    print(resource)
-
+    sys.stdout.close()
     return dict_for_xml
 

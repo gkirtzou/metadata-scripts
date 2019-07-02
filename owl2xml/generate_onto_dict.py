@@ -4,11 +4,6 @@ import rdflib
 import sys
 
 
-
-# import owlrl
-# from owlrl import OWLRL_Semantics
-
-
 def literal_to_tuple(literal):
     return (literal.value, literal.language)
 
@@ -41,24 +36,25 @@ def resource_common_elements_to_dict(resource):
 
 
 def get_rdf_dict():
-    sys.stdout = open("test.txt", "w")
+
     Config = ConfigParser()
     Config.read('generate_xsd_elements.ini')
 
     filename_owl = Config.get('Input', 'filename_owl')
+    format_owl = Config.get('Input', 'filename_owl_format')
+    related_properties = Config.get('Input', 'related_properties')
+
+    log_file = Config.get('Output', 'log_file')
+    sys.stdout = open(log_file, 'w')
 
     # Read OWL ontology file
     rdfGraph = rdflib.Graph()
-    rdfGraph.parse(filename_owl)
-    # owlrl.DeductiveClosure(OWLRL_Semantics).expand(rdfGraph)
+    rdfGraph.parse(filename_owl, format=format_owl)
+
 
     pp = pprint.PrettyPrinter(indent=4)
     dict_for_xml = []
-    # For DatatypeProperties
-    # data_properties_results = rdfGraph.query(
-    #     " SELECT ?p WHERE { ?p a owl:DatatypeProperty  FILTER regex(str(?p), \" "
-    #     + domain +
-    #     "\")} ORDER BY ASC(?p) ")
+    xml_entities = set()
     data_properties_results = rdfGraph.query(
         """
         SELECT DISTINCT ?p
@@ -68,10 +64,9 @@ def get_rdf_dict():
 
     for res in data_properties_results:
         resource = rdfGraph.resource(res['p'])
-
+        print('Case 1', resource)
         data_property = resource_common_elements_to_dict(resource)
         data_property['property'] = 'dataProp'
-        # More thought when range is or combination
         range = resource.value(rdflib.namespace.RDFS.range)
         if range:
             try:
@@ -98,9 +93,9 @@ def get_rdf_dict():
         if range != None:
             query_class_instances = "SELECT DISTINCT ?i WHERE { ?i a <" + range.identifier + ">} ORDER BY ASC(?i)"
             ci_res = rdfGraph.query(query_class_instances)
-            # Case 1: CV the instances of the class range
+            # Case 2: CV the instances of the class range
             if len(ci_res) > 0:
-                print('Case 1', resource)
+                print('Case 2', resource)
                 dict_r = resource_common_elements_to_dict(resource)
                 dict_r['property'] = 'objProp'
                 dict_r['type'] = range.qname()
@@ -108,43 +103,39 @@ def get_rdf_dict():
                 for ci in ci_res:
                     instance = rdfGraph.resource(ci['i'])
                     dict_r['controlled_vocabulary'].append(resource_common_elements_to_dict(instance))
-                dict_for_xml.append(dict_r)
+                if dict_r['identifier'] not in xml_entities:
+                    dict_for_xml.append(dict_r)
+                    xml_entities.add(dict_r['identifier'])
             else:
+                # Subclass condition
                 query_subclasses = "SELECT DISTINCT ?sc WHERE { ?sc rdfs:subClassOf <" + range.identifier + ">} ORDER BY ASC(?sb)"
                 sc_res = rdfGraph.query(query_subclasses)
 
-                if len(sc_res) > 0:
-                    is_cv_case = False
+                if len(sc_res) > 0 and resource.identifier not in related_properties:
                     for sc in sc_res:
                         subclass = rdfGraph.resource(sc['sc'])
                         query_class_instances = "SELECT DISTINCT ?i WHERE { ?i a <" + subclass.identifier + ">} ORDER BY ASC(?i)"
                         ci_res = rdfGraph.query(query_class_instances)
-                        # Case 2: CV the instances of the classes, where classes are subclasses of class range
+                        dict_r = resource_common_elements_to_dict(subclass)
+
+                        dict_r['property'] = 'objProp'
+                        dict_r['type'] = subclass.qname()
+                        dict_r['controlled_vocabulary'] = []
+                        # Case 3: CV the instances of the classes, where classes are subclasses of class range
                         if len(ci_res) > 0:
-                            is_cv_case = True
-                            dict_r = resource_common_elements_to_dict(subclass)
-                            print('Case 2', subclass, len(ci_res))
-                            dict_r['property'] = 'objProp'
-                            dict_r['type'] = subclass.qname()
+                            print('Case 3', subclass, len(ci_res))
                             dict_r['controlled_vocabulary'] = []
                             for ci in ci_res:
                                 instance = rdfGraph.resource(ci['i'])
                                 dict_r['controlled_vocabulary'].append(resource_common_elements_to_dict(instance))
-                            dict_for_xml.append(dict_r)
-                    # Case 3: no CV
-                    if not is_cv_case:
-                        print('Case 3.1', resource)
-                        dict_r = resource_common_elements_to_dict(resource)
-                        dict_r['property'] = 'objProp'
-                        try:
-                            dict_r['type'] = range.qname()
-                        except:
-                            dict_r['type'] = None
+                        else:
+                            print('Case 5', subclass)
                             dict_r['controlled_vocabulary'] = []
+                        if dict_r['identifier'] not in xml_entities:
                             dict_for_xml.append(dict_r)
-                # Case 3: no CV
+                            xml_entities.add(dict_r['identifier'])
                 else:
-                    print('Case 3.2', resource)
+                    print('Case 4', resource)
                     dict_r = resource_common_elements_to_dict(resource)
                     dict_r['property'] = 'objProp'
                     try:
@@ -152,9 +143,10 @@ def get_rdf_dict():
                     except:
                         dict_r['type'] = None
                     dict_r['controlled_vocabulary'] = []
-                    dict_for_xml.append(dict_r)
-        #else:
-        #    print(resource)
+                    if dict_r['identifier'] not in xml_entities:
+                        dict_for_xml.append(dict_r)
+                        xml_entities.add(dict_r['identifier'])
+
     sys.stdout.close()
     return dict_for_xml
 

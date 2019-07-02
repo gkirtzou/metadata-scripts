@@ -83,7 +83,8 @@ def _create_annotation(parent, data_dict):
 def get_name(name):
     # attrib={'name': data['name'].split(':')[1]
     #                                                                        +f"_{data['name'].split(':')[0]}"}
-    return name.replace(':', '_')
+    return name.split(':')[1]
+    # name.replace(':', '_')
 
 def create_data_prop(data, el_type=None):
     if el_type:
@@ -148,7 +149,7 @@ for d in get_rdf_dict():
         try:
             schema.append(etree.Comment(f'Definition for {d["name"]}'))
             if d['type']:
-                el = create_object_prop(d, el_type=get_name(d['type']))
+                el = create_object_prop(d, el_type=d['type'])
             else:
                 el = create_object_prop(d)
             schema.append(el)

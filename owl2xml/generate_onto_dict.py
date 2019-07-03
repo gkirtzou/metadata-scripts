@@ -1,3 +1,4 @@
+import ast
 import pprint
 from configparser import ConfigParser
 import rdflib
@@ -40,27 +41,58 @@ def get_rdf_dict():
     Config = ConfigParser()
     Config.read('generate_xsd_elements.ini')
 
-    filename_owl = Config.get('Input', 'filename_owl')
-    format_owl = Config.get('Input', 'filename_owl_format')
-    related_properties = Config.get('Input', 'related_properties')
+    # RDF files
+    filename_owl = ast.literal_eval(Config.get('Input', 'filename_owl'))
+    format_owl = ast.literal_eval(Config.get('Input', 'filename_owl_format'))
+    try:
+        domains = ast.literal_eval(Config.get('Input', 'domains'))
+    except:
+        domains = None
+
+    related_properties = ast.literal_eval(Config.get('Input', 'related_properties'))
 
     log_file = Config.get('Output', 'log_file')
     sys.stdout = open(log_file, 'w')
 
     # Read OWL ontology file
     rdfGraph = rdflib.Graph()
-    rdfGraph.parse(filename_owl, format=format_owl)
+    for id_x, file in enumerate(filename_owl):
+        rdfGraph.parse(file, format=format_owl[id_x])
+        print("graph has %s statements." % len(rdfGraph))
+
 
 
     pp = pprint.PrettyPrinter(indent=4)
     dict_for_xml = []
     xml_entities = set()
-    data_properties_results = rdfGraph.query(
-        """
-        SELECT DISTINCT ?p
-	    WHERE { ?p a owl:DatatypeProperty }
-	    ORDER BY ASC(?p)
-        """)
+
+    # For DataProperties
+    if domains:
+        query = str('''
+            SELECT DISTINCT ?p
+            WHERE {{ 
+             ?p a owl:DatatypeProperty 
+             FILTER({0})
+            }}
+            ORDER BY ASC(?p)
+            ''')
+        # Keep properties from given domains
+        filter_str = ''
+        for id_d, d in enumerate(domains):
+            filter_str += "regex(str(?p), \"{0}\")".format(d)
+            if id_d+1 < len(domains):
+                filter_str += ' || '
+        query = query.format(filter_str)
+    else:
+        query = '''
+            SELECT DISTINCT ?p
+            WHERE {{ 
+             ?p a owl:DatatypeProperty 
+            }}
+            ORDER BY ASC(?p)
+            '''
+
+    data_properties_results = rdfGraph.query(query)
 
     for res in data_properties_results:
         resource = rdfGraph.resource(res['p'])
@@ -79,12 +111,33 @@ def get_rdf_dict():
         dict_for_xml.append(data_property)
 
     # For ObjectProperties
-    obj_properties_results = rdfGraph.query(
-        """
-        SELECT DISTINCT ?p
-        WHERE { ?p a owl:ObjectProperty }
-        ORDER BY ASC(?p)
-        """)
+    if domains:
+        query = str('''
+         SELECT DISTINCT ?p
+         WHERE {{
+         ?p a owl:ObjectProperty
+         FILTER({0})
+         }}
+         ORDER BY ASC(?p)
+         ''')
+
+        # Keep properties from given domains
+        filter_str = ''
+        for id_d, d in enumerate(domains):
+             filter_str += "regex(str(?p), \"{0}\")".format(d)
+        if id_d + 1 < len(domains):
+             filter_str += ' || '
+        query = query.format(filter_str)
+    else:
+        query = '''
+         SELECT DISTINCT ?p
+         WHERE {{
+         ?p a owl:ObjectProperty         
+         }}
+         ORDER BY ASC(?p)
+         '''
+
+    obj_properties_results = rdfGraph.query(query)
 
     for res in obj_properties_results:
         resource = rdfGraph.resource(res['p'])
@@ -108,10 +161,11 @@ def get_rdf_dict():
                     xml_entities.add(dict_r['identifier'])
             else:
                 # Subclass condition
-                query_subclasses = "SELECT DISTINCT ?sc WHERE { ?sc rdfs:subClassOf <" + range.identifier + ">} ORDER BY ASC(?sb)"
+                query_subclasses = "SELECT DISTINCT ?sc WHERE { ?sc rdfs:subClassOf* <" + range.identifier + ">} ORDER BY ASC(?sc)"
                 sc_res = rdfGraph.query(query_subclasses)
 
-                if len(sc_res) > 0 and resource.identifier not in related_properties:
+                if len(sc_res) > 1 and str(resource.identifier) not in related_properties:
+                    print("Subclasses ", len(sc_res))
                     for sc in sc_res:
                         subclass = rdfGraph.resource(sc['sc'])
                         query_class_instances = "SELECT DISTINCT ?i WHERE { ?i a <" + subclass.identifier + ">} ORDER BY ASC(?i)"
@@ -128,14 +182,16 @@ def get_rdf_dict():
                             for ci in ci_res:
                                 instance = rdfGraph.resource(ci['i'])
                                 dict_r['controlled_vocabulary'].append(resource_common_elements_to_dict(instance))
+                        # Case 4:  Object properties with range with subclasses without instances
                         else:
-                            print('Case 5', subclass)
+                            print('Case 4', subclass)
                             dict_r['controlled_vocabulary'] = []
                         if dict_r['identifier'] not in xml_entities:
                             dict_for_xml.append(dict_r)
                             xml_entities.add(dict_r['identifier'])
+                # Case 5: for Object properties with range class without subclasses and without individuals
                 else:
-                    print('Case 4', resource)
+                    print('Case 5', resource)
                     dict_r = resource_common_elements_to_dict(resource)
                     dict_r['property'] = 'objProp'
                     try:

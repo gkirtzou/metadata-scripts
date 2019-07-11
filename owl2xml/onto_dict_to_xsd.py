@@ -3,11 +3,11 @@ import datetime
 from configparser import ConfigParser
 from lxml import etree
 
-# dataProp example
-
 from owl2xml.generate_onto_dict import get_rdf_dict
 from xsd.namespaces import ms, xs, xml
 from xsd.xsd import Enumeration
+
+# dataProp example
 
 NSMAP = {
     'ms': ms,
@@ -80,11 +80,13 @@ def _create_annotation(parent, data_dict):
 
     return annotation
 
+
 def get_name(name):
     # attrib={'name': data['name'].split(':')[1]
     #                                                                        +f"_{data['name'].split(':')[0]}"}
     return name.split(':')[1]
     # name.replace(':', '_')
+
 
 def create_data_prop(data, el_type=None):
     if el_type:
@@ -118,7 +120,7 @@ def create_object_prop(data, el_type=None):
     else:
         if el_type:
             element = etree.Element('{' + xs + '}element', attrib={'name': get_name(data['name']),
-                                                               'type': el_type})
+                                                                   'type': el_type})
         else:
             element = etree.Element('{' + xs + '}element', attrib={'name': get_name(data['name'])})
     _create_annotation(element, data)
@@ -135,8 +137,24 @@ def create_object_prop(data, el_type=None):
     return element
 
 
+def create_attribute(data):
+    element = etree.Element('{' + xs + '}attribute', attrib={'name': get_name(data['name'])})
+    _create_annotation(element, data)
+
+    if data['controlled_vocabulary']:
+        # build enumeration block
+        simpe_type = etree.SubElement(element, '{' + xs + '}simpleType')
+        restriction = etree.SubElement(simpe_type, '{' + xs + '}restriction', attrib={'base': 'xs:string'})
+        for cv in data['controlled_vocabulary']:
+            enum = Enumeration(cv['identifier']).to_xsd()
+            _create_annotation(enum, cv)
+            restriction.append(enum)
+
+    return element
+
+
 for d in get_rdf_dict():
-    #print(d['identifier'])
+    # print(d['identifier'])
     if d['property'] == 'dataProp':
         try:
             schema.append(etree.Comment(f'Definition for {d["name"]}'))
@@ -153,8 +171,14 @@ for d in get_rdf_dict():
             else:
                 el = create_object_prop(d)
             schema.append(el)
-
-
+        except KeyError:
+            pass
+    elif d['property'] == 'attrProp':
+        print(d['identifier'], ' as attribute property')
+        try:
+            schema.append(etree.Comment(f'Definition for {d["name"]}'))
+            el = create_attribute(d)
+            schema.append(el)
         except KeyError:
             pass
 

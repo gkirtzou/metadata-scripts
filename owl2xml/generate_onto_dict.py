@@ -1,12 +1,13 @@
 import ast
 import pprint
-from configparser import ConfigParser
-import rdflib
 import sys
+
+import rdflib
+from configparser import ConfigParser
 
 
 def literal_to_tuple(literal):
-    return (literal.value, literal.language)
+    return literal.value, literal.language
 
 
 def literals_to_list(literals):
@@ -37,21 +38,21 @@ def resource_common_elements_to_dict(resource):
 
 
 def get_rdf_dict():
-
-    Config = ConfigParser()
-    Config.read('generate_xsd_elements.ini')
+    config = ConfigParser()
+    config.read('generate_xsd_elements.ini')
 
     # RDF files
-    filename_owl = ast.literal_eval(Config.get('Input', 'filename_owl'))
-    format_owl = ast.literal_eval(Config.get('Input', 'filename_owl_format'))
+    filename_owl = ast.literal_eval(config.get('Input', 'filename_owl'))
+    format_owl = ast.literal_eval(config.get('Input', 'filename_owl_format'))
     try:
-        domains = ast.literal_eval(Config.get('Input', 'domains'))
+        domains = ast.literal_eval(config.get('Input', 'domains'))
     except:
         domains = None
 
-    related_properties = ast.literal_eval(Config.get('Input', 'related_properties'))
+    related_properties = ast.literal_eval(config.get('Input', 'related_properties'))
+    generate_attributes_properties = ast.literal_eval(config.get('Input', 'generate_attributes_properties'))
 
-    log_file = Config.get('Output', 'log_file')
+    log_file = config.get('Output', 'log_file')
     sys.stdout = open(log_file, 'w')
 
     # Read OWL ontology file
@@ -59,8 +60,6 @@ def get_rdf_dict():
     for id_x, file in enumerate(filename_owl):
         rdfGraph.parse(file, format=format_owl[id_x])
         print("graph has %s statements." % len(rdfGraph))
-
-
 
     pp = pprint.PrettyPrinter(indent=4)
     dict_for_xml = []
@@ -80,7 +79,7 @@ def get_rdf_dict():
         filter_str = ''
         for id_d, d in enumerate(domains):
             filter_str += "regex(str(?p), \"{0}\")".format(d)
-            if id_d+1 < len(domains):
+            if id_d + 1 < len(domains):
                 filter_str += ' || '
         query = query.format(filter_str)
     else:
@@ -124,9 +123,9 @@ def get_rdf_dict():
         # Keep properties from given domains
         filter_str = ''
         for id_d, d in enumerate(domains):
-             filter_str += "regex(str(?p), \"{0}\")".format(d)
+            filter_str += "regex(str(?p), \"{0}\")".format(d)
         if id_d + 1 < len(domains):
-             filter_str += ' || '
+            filter_str += ' || '
         query = query.format(filter_str)
     else:
         query = '''
@@ -143,14 +142,18 @@ def get_rdf_dict():
         resource = rdfGraph.resource(res['p'])
         print('Working on r:', resource)
         range = resource.value(rdflib.namespace.RDFS.range)
-        if range != None:
+        if range is not None:
             query_class_instances = "SELECT DISTINCT ?i WHERE { ?i a <" + range.identifier + ">} ORDER BY ASC(?i)"
             ci_res = rdfGraph.query(query_class_instances)
             # Case 2: CV the instances of the class range
             if len(ci_res) > 0:
-                print('Case 2', resource)
                 dict_r = resource_common_elements_to_dict(resource)
-                dict_r['property'] = 'objProp'
+                if str(resource.identifier) in generate_attributes_properties:
+                    print('Case 7.2', resource)
+                    dict_r['property'] = 'attrProp'
+                else:
+                    print('Case 2', resource)
+                    dict_r['property'] = 'objProp'
                 dict_r['type'] = range.qname()
                 dict_r['controlled_vocabulary'] = []
                 for ci in ci_res:
@@ -172,28 +175,41 @@ def get_rdf_dict():
                         ci_res = rdfGraph.query(query_class_instances)
                         dict_r = resource_common_elements_to_dict(subclass)
 
-                        dict_r['property'] = 'objProp'
                         dict_r['type'] = subclass.qname()
                         dict_r['controlled_vocabulary'] = []
                         # Case 3: CV the instances of the classes, where classes are subclasses of class range
                         if len(ci_res) > 0:
-                            print('Case 3', subclass, len(ci_res))
+                            if str(resource.identifier) in generate_attributes_properties:
+                                print('Case 7.3', subclass)
+                                dict_r['property'] = 'attrProp'
+                            else:
+                                print('Case 3', subclass, len(ci_res))
+                                dict_r['property'] = 'objProp'
                             dict_r['controlled_vocabulary'] = []
                             for ci in ci_res:
                                 instance = rdfGraph.resource(ci['i'])
                                 dict_r['controlled_vocabulary'].append(resource_common_elements_to_dict(instance))
                         # Case 4:  Object properties with range with subclasses without instances
                         else:
-                            print('Case 4', subclass)
+                            if str(resource.identifier) in generate_attributes_properties:
+                                print('Case 7.4', subclass)
+                                dict_r['property'] = 'attrProp'
+                            else:
+                                print('Case 4', subclass)
+                                dict_r['property'] = 'objProp'
                             dict_r['controlled_vocabulary'] = []
                         if dict_r['identifier'] not in xml_entities:
                             dict_for_xml.append(dict_r)
                             xml_entities.add(dict_r['identifier'])
                 # Case 5: for Object properties with range class without subclasses and without individuals
                 else:
-                    print('Case 5', resource)
                     dict_r = resource_common_elements_to_dict(resource)
-                    dict_r['property'] = 'objProp'
+                    if str(resource.identifier) in generate_attributes_properties:
+                        print('Case 7.5', resource)
+                        dict_r['property'] = 'attrProp'
+                    else:
+                        print('Case 5', resource)
+                        dict_r['property'] = 'objProp'
                     try:
                         dict_r['type'] = range.qname()
                     except:
@@ -204,5 +220,5 @@ def get_rdf_dict():
                         xml_entities.add(dict_r['identifier'])
 
     sys.stdout.close()
-    return dict_for_xml
 
+    return dict_for_xml

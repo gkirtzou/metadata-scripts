@@ -219,6 +219,6 @@ def get_rdf_dict():
                         dict_for_xml.append(dict_r)
                         xml_entities.add(dict_r['identifier'])
 
-    sys.stdout.close()
+
 
     return dict_for_xml

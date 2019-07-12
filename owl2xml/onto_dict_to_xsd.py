@@ -1,4 +1,5 @@
 import datetime
+import sys
 
 from configparser import ConfigParser
 from lxml import etree
@@ -83,8 +84,13 @@ def _create_annotation(parent, data_dict):
 
 def get_name(name):
     # attrib={'name': data['name'].split(':')[1]
+    #
     #                                                                        +f"_{data['name'].split(':')[0]}"}
-    return name.split(':')[1]
+    try:
+        new_name = name.split(':')[1]
+    except IndexError:
+        return name
+    return new_name
     # name.replace(':', '_')
 
 
@@ -154,7 +160,7 @@ def create_attribute(data):
 
 
 for d in get_rdf_dict():
-    # print(d['identifier'])
+    print(d['identifier'])
     if d['property'] == 'dataProp':
         try:
             schema.append(etree.Comment(f'Definition for {d["name"]}'))
@@ -174,7 +180,6 @@ for d in get_rdf_dict():
         except KeyError:
             pass
     elif d['property'] == 'attrProp':
-        print(d['identifier'], ' as attribute property')
         try:
             schema.append(etree.Comment(f'Definition for {d["name"]}'))
             el = create_attribute(d)
@@ -187,5 +192,5 @@ Config.read('generate_xsd_elements.ini')
 filename_xsd = Config.get('Output', 'filename_xsd')
 with open(filename_xsd, 'wb') as f:
     f.write(etree.tostring(schema, pretty_print=True, xml_declaration=True, encoding='UTF-8'))
-
+sys.stdout.close()
 # print(etree.tostring(schema, pretty_print=True, encoding='unicode'))

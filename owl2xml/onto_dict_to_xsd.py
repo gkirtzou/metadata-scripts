@@ -5,32 +5,8 @@ from configparser import ConfigParser
 from lxml import etree
 
 from owl2xml.generate_onto_dict import get_rdf_dict
-from xsd.namespaces import ms, xs, xml
+from xsd.namespaces import ms, xs, xml, omtd
 from xsd.xsd import Enumeration
-
-# dataProp example
-
-NSMAP = {
-    'ms': ms,
-    'xs': xs,
-}
-
-# Create ROOT element "schema"
-schema = etree.Element('{' + xs + '}schema', nsmap=NSMAP, attrib={
-    'targetNamespace': 'http://w3id.org/meta-share/ms_onto/',
-    'elementFormDefault': 'qualified',
-    'attributeFormDefault': 'unqualified',
-    'version': '0.01',
-    '{' + xml + '}lang': 'en'
-})
-
-schema.append(etree.Comment(f'Last Updated: {datetime.datetime.today().strftime("%B %d, %Y")}'))
-
-# import xml namespace
-etree.SubElement(schema, '{' + xs + '}import', attrib={
-    'namespace': xml,
-    'schemaLocation': 'http://www.w3.org/2001/xml.xsd'
-})
 
 
 def _tuple_list_to_child_element_multi(parent, item, name, prefix=None):
@@ -73,19 +49,19 @@ def _create_annotation(parent, data_dict):
     _tuple_list_to_child_element_multi(appinfo, data_dict['label_plural'], 'label_plural')
     _tuple_list_to_child_element_multi(appinfo, data_dict['alt_label'], 'alt_label')
     _tuple_list_to_child_element_multi(appinfo, data_dict['example'], 'example')
+    _tuple_list_to_child_element_multi(appinfo, data_dict['note'], 'note')
 
     _list_to_child_element_multi(appinfo, data_dict['close_match'], 'closeMatch')
     _list_to_child_element_multi(appinfo, data_dict['exact_match'], 'exactMatch')
     _list_to_child_element_multi(appinfo, data_dict['narrow_match'], 'narrowMatch')
     _list_to_child_element_multi(appinfo, data_dict['broad_match'], 'broadMatch')
+    _list_to_child_element_multi(appinfo, data_dict['subclass_of'], 'subclassOf')
 
     return annotation
 
 
 def get_name(name):
-    # attrib={'name': data['name'].split(':')[1]
-    #
-    #                                                                        +f"_{data['name'].split(':')[0]}"}
+    # attrib={'name': data['name'].split(':')[1]+f"_{data['name'].split(':')[0]}"}
     try:
         new_name = name.split(':')[1]
     except IndexError:
@@ -159,38 +135,63 @@ def create_attribute(data):
     return element
 
 
-for d in get_rdf_dict():
-    print(d['identifier'])
-    if d['property'] == 'dataProp':
-        try:
-            schema.append(etree.Comment(f'Definition for {d["name"]}'))
-            el = create_data_prop(d, el_type=d['type'])
-            schema.append(el)
-        except KeyError:
-            pass
+if __name__ == '__main__':
+    config = ConfigParser()
+    config.read('generate_xsd_elements.ini')
+    target_namespace = config.get('Input', 'target_namespace')
+    NSMAP = {
+        'ms': ms,
+        'xs': xs,
+        'omtd': omtd,
+    }
 
-    elif d['property'] == 'objProp':
-        try:
-            schema.append(etree.Comment(f'Definition for {d["name"]}'))
-            if d['type']:
-                el = create_object_prop(d, el_type=d['type'])
-            else:
-                el = create_object_prop(d)
-            schema.append(el)
-        except KeyError:
-            pass
-    elif d['property'] == 'attrProp':
-        try:
-            schema.append(etree.Comment(f'Definition for {d["name"]}'))
-            el = create_attribute(d)
-            schema.append(el)
-        except KeyError:
-            pass
+    # Create ROOT element "schema"
+    schema = etree.Element('{' + xs + '}schema', nsmap=NSMAP, attrib={
+        'targetNamespace': target_namespace,
+        'elementFormDefault': 'qualified',
+        'attributeFormDefault': 'unqualified',
+        'version': '0.01',
+        '{' + xml + '}lang': 'en'
+    })
 
-Config = ConfigParser()
-Config.read('generate_xsd_elements.ini')
-filename_xsd = Config.get('Output', 'filename_xsd')
-with open(filename_xsd, 'wb') as f:
-    f.write(etree.tostring(schema, pretty_print=True, xml_declaration=True, encoding='UTF-8'))
-sys.stdout.close()
-# print(etree.tostring(schema, pretty_print=True, encoding='unicode'))
+    schema.append(etree.Comment(f'Last Updated: {datetime.datetime.today().strftime("%B %d, %Y")}'))
+
+    # import xml namespace
+    etree.SubElement(schema, '{' + xs + '}import', attrib={
+        'namespace': xml,
+        'schemaLocation': 'http://www.w3.org/2001/xml.xsd'
+    })
+
+    for d in get_rdf_dict():
+        print(d['identifier'])
+        if d['property'] == 'dataProp':
+            try:
+                schema.append(etree.Comment(f'Definition for {d["name"]}'))
+                el = create_data_prop(d, el_type=d['type'])
+                schema.append(el)
+            except KeyError:
+                pass
+
+        elif d['property'] == 'objProp':
+            try:
+                schema.append(etree.Comment(f'Definition for {d["name"]}'))
+                if d['type']:
+                    el = create_object_prop(d, el_type=d['type'])
+                else:
+                    el = create_object_prop(d)
+                schema.append(el)
+            except KeyError:
+                pass
+        elif d['property'] == 'attrProp':
+            try:
+                schema.append(etree.Comment(f'Definition for {d["name"]}'))
+                el = create_attribute(d)
+                schema.append(el)
+            except KeyError:
+                pass
+
+    filename_xsd = config.get('Output', 'filename_xsd')
+    with open(filename_xsd, 'wb') as f:
+        f.write(etree.tostring(schema, pretty_print=True, xml_declaration=True, encoding='UTF-8'))
+
+    sys.stdout.close()

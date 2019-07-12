@@ -1,11 +1,15 @@
+import datetime
+
 import lxml.etree as etree
 import rdflib
 from configparser import ConfigParser
-import ast
+
+from owl2xml.generate_onto_dict import resource_common_elements_to_dict, create_dict_for_object_prop
+from owl2xml.onto_dict_to_xsd import _create_annotation, get_name, create_object_prop
+from xsd.namespaces import ms, omtd, xs, xml
 
 
 def recursiveFunction(element, uriResource, rdfGraph, alreadySeen):
-
     if uriResource in alreadySeen:
         print('Already seen ' + uriResource)
         return
@@ -14,44 +18,19 @@ def recursiveFunction(element, uriResource, rdfGraph, alreadySeen):
     resource = rdfGraph.resource(uriResource)
     parentResources = resource.objects(rdflib.RDFS.subClassOf)
 
-    print("Working resource is " + resource.identifier)
+    print("Working resource is " + uriResource)
+    resource_dict = resource_common_elements_to_dict(resource)
     # for parent in parentResources:
     #    print "and has parent " + parent.identifier
 
     # Create xsd enumeration element
     # rdf URI to enumeration value
+
     enumeration = etree.SubElement(
         element, etree.QName(xs, 'enumeration'))
-    enumeration.attrib[etree.QName('value')] = resource.identifier
-    # xs:annotation
-    enumerationAnnotation = etree.SubElement(
-        enumeration, etree.QName(xs, 'annotation'))
-    # rdfs:comment to xs:documentation
-    enumerationDocumentation = etree.SubElement(
-        enumerationAnnotation, etree.QName(xs, 'documentation'))
-    enumerationDocumentation.text = resource.comment()
-    # xs:appinfo
-    enumerationAppInfo = etree.SubElement(
-        enumerationAnnotation, etree.QName(xs, 'appinfo'))
-    # rdfs:label to label
-    enumerationLabel = etree.SubElement(
-        enumerationAppInfo, etree.QName('label'))
-    enumerationLabel.text = resource.label()
 
-    # rdfs:subclassOf to subclassOf
-    for parent in parentResources:
-     #   print "and has parent " + parent.identifier
-        if parent.identifier.startswith('http'):
-            enumerationSubclassOf = etree.SubElement(
-                enumerationAppInfo, etree.QName('subclassOf'))
-            enumerationSubclassOf.text = parent.identifier
-
-    enumerationAltLabels = resource.objects(rdflib.namespace.SKOS.altLabel)
-    for altlabel in enumerationAltLabels:
-        # skos:altLabel to altLabel
-        enumerationAltLabel = etree.SubElement(
-            enumerationAppInfo, etree.QName('altLabel'))
-        enumerationAltLabel.text = altlabel
+    enumeration.attrib[etree.QName('value')] = resource_dict['identifier']
+    _create_annotation(enumeration, resource_dict)
 
     subclasses = resource.subjects(rdflib.RDFS.subClassOf)
 
@@ -64,17 +43,37 @@ def recursiveFunction(element, uriResource, rdfGraph, alreadySeen):
 
 
 if __name__ == '__main__':
-    Config = ConfigParser()
-    Config.read('generate_controlled_vocabularies.ini')
+    config = ConfigParser()
+    config.read('generate_controlled_vocabularies.ini')
 
-    filename_xsd = Config.get('Input', 'filename_xsd')
-    filename_owl = Config.get('Input', 'filename_owl')
-    filename_xsd_updated = Config.get('Output', 'filename_xsd_updated')
-    mapping = Config.items('Mapping')
+    filename_owl = config.get('Input', 'filename_owl')
+
+    target_namespace = config.get('Input', 'target_namespace')
+    NSMAP = {
+        'ms': ms,
+        'xs': xs,
+        'omtd': omtd,
+    }
+
+    # Create ROOT element "schema"
+    schema = etree.Element('{' + xs + '}schema', nsmap=NSMAP, attrib={
+        'targetNamespace': target_namespace,
+        'elementFormDefault': 'qualified',
+        'attributeFormDefault': 'unqualified',
+        'version': '0.01',
+        '{' + xml + '}lang': 'en'
+    })
+
+    schema.append(etree.Comment(f'Last Updated: {datetime.datetime.today().strftime("%B %d, %Y")}'))
+
+    # import xml namespace
+    etree.SubElement(schema, '{' + xs + '}import', attrib={
+        'namespace': xml,
+        'schemaLocation': 'http://www.w3.org/2001/xml.xsd'
+    })
 
     # Read xsd file
-    tree = etree.parse(filename_xsd)
-    root = tree.getroot()
+    #   root = etree.getroot()
     # print etree.tostring(root, pretty_print=True)
 
     # Declaring namespace
@@ -86,28 +85,39 @@ if __name__ == '__main__':
     result = rdfGraph.parse(filename_owl,
                             format="application/rdf+xml")
 
+    subclass_map = config.items('Subclassing')
+    for (k, v) in subclass_map:
+        print('{} is mapped to resources {}'.format(k, v))
+        resource = rdfGraph.resource(v)
+        # Create xml annotation
+        resource_dict = resource_common_elements_to_dict(resource)
+        schema.append(etree.Comment(f'Definition for {v}'))
+        element = etree.Element('{' + xs + '}simpleType', attrib={'name': get_name(resource_dict['name'])})
+        _create_annotation(element, resource_dict)
+        # Create xml restriction
+        restriction = etree.SubElement(
+            element, etree.QName(xs, 'restriction')
+        )
+        restriction.attrib[etree.QName('base')] = etree.QName(xs, 'anyURI')
+        subclasses = resource.subjects(rdflib.RDFS.subClassOf)
+        for subcl in subclasses:
+            recursiveFunction(restriction, subcl.identifier, rdfGraph, [])
+        schema.append(element)
 
-    for element in root.iter(etree.QName(xs, 'simpleType').text):
-        print("%s - %s" % (element.tag, element.attrib['name']))
-        subelement = list(element.iter(etree.QName(xs, 'restriction').text))
-        assert len(subelement) == 1
-        subelement = subelement[0]
+    instance_map = config.items('Instances')
+    for (k, v) in instance_map:
+        print('{} is mapped to resources {}'.format(k, v))
+        resource = rdfGraph.resource(v)
+        dict_resource = create_dict_for_object_prop(resource, rdfGraph)
+        schema.append(etree.Comment(f'Definition for {dict_resource["name"]}'))
+        if dict_resource['type']:
+            el = create_object_prop(dict_resource, el_type=dict_resource['type'])
+        else:
+            el = create_object_prop(dict_resource)
+        schema.append(el)
 
-        # Get mapping xsd elements to RDF Classes
-        uriResources = []
-        try:
-            uriResources = ast.literal_eval(Config.get(
-                'Mapping', element.attrib['name']))
-        except ConfigParser.NoOptionError:
-            continue
+    # print(str(etree.tostring(schema, pretty_print=True, xml_declaration=True, encoding='UTF-8')))
 
-        print("Element " + element.attrib['name'] + " is mapped to " + str(uriResources))
-        for uriResource in uriResources:
-            recursiveFunction(subelement, uriResource, rdfGraph, [])
-
-    # print etree.tostring(root, pretty_print=True)
-
-    # Print xml
-    fileXML = open(filename_xsd_updated, 'w')
-    fileXML.write(etree.tostring(root, pretty_print=True))
-    fileXML.close()
+    filename_xsd = config.get('Output', 'filename_xsd')
+    with open(filename_xsd, 'wb') as f:
+        f.write(etree.tostring(schema, pretty_print=True, xml_declaration=True, encoding='UTF-8'))

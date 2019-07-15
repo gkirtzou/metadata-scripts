@@ -109,12 +109,13 @@ if __name__ == '__main__':
         print('{} is mapped to resources {}'.format(k, v))
         resource = rdfGraph.resource(v)
         dict_resource = create_dict_for_object_prop(resource, rdfGraph)
-        schema.append(etree.Comment(f'Definition for {dict_resource["name"]}'))
-        if dict_resource['type']:
-            el = create_object_prop(dict_resource, el_type=dict_resource['type'])
-        else:
-            el = create_object_prop(dict_resource)
-        schema.append(el)
+        for d in dict_resource:
+            schema.append(etree.Comment(f'Definition for {d["name"]}'))
+            if d['type']:
+                el = create_object_prop(d, el_type=d['type'])
+            else:
+                el = create_object_prop(d)
+            schema.append(el)
 
     # print(str(etree.tostring(schema, pretty_print=True, xml_declaration=True, encoding='UTF-8')))
 

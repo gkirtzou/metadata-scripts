@@ -15,7 +15,7 @@ def literals_to_list(literals):
 
 
 def resources_to_list(resources):
-    return [str(r.identifier) for r in resources]
+    return [str(r.identifier) for r in resources if str(r.identifier).__contains__('http://')]
 
 
 def resource_common_elements_to_dict(resource):
@@ -35,12 +35,13 @@ def resource_common_elements_to_dict(resource):
     dict_r['exact_match'] = resources_to_list(resource.objects(rdflib.namespace.SKOS.exactMatch))
     dict_r['broad_match'] = resources_to_list(resource.objects(rdflib.namespace.SKOS.broadMatch))
     dict_r['narrow_match'] = resources_to_list(resource.objects(rdflib.namespace.SKOS.narrowMatch))
-    dict_r['subclass_of'] = resources_to_list(resource.subjects(rdflib.namespace.RDFS.subClassOf))
+    dict_r['subclass_of'] = resources_to_list(resource.objects(rdflib.namespace.RDFS.subClassOf))
     return dict_r
 
 
 def create_dict_for_object_prop(resource, rdfGraph, generate_attributes_properties=[], related_properties=[],
                                 xml_entities=set()):
+    dict_for_xml = []
     range = resource.value(rdflib.namespace.RDFS.range)
     if range is not None:
         query_class_instances = "SELECT DISTINCT ?i WHERE { ?i a <" + range.identifier + ">} ORDER BY ASC(?i)"
@@ -60,7 +61,7 @@ def create_dict_for_object_prop(resource, rdfGraph, generate_attributes_properti
                 instance = rdfGraph.resource(ci['i'])
                 dict_r['controlled_vocabulary'].append(resource_common_elements_to_dict(instance))
             if dict_r['identifier'] not in xml_entities:
-                return dict_r
+                dict_for_xml.append(dict_r)
         else:
             # Subclass condition
             query_subclasses = "SELECT DISTINCT ?sc WHERE { ?sc rdfs:subClassOf* <" + range.identifier + ">} ORDER BY ASC(?sc)"
@@ -98,7 +99,7 @@ def create_dict_for_object_prop(resource, rdfGraph, generate_attributes_properti
                             dict_r['property'] = 'objProp'
                         dict_r['controlled_vocabulary'] = []
                     if dict_r['identifier'] not in xml_entities:
-                        return dict_r
+                        dict_for_xml.append(dict_r)
 
             # Case 5: for Object properties with range class without subclasses and without individuals
             else:
@@ -115,8 +116,8 @@ def create_dict_for_object_prop(resource, rdfGraph, generate_attributes_properti
                     dict_r['type'] = None
                 dict_r['controlled_vocabulary'] = []
                 if dict_r['identifier'] not in xml_entities:
-                    return dict_r
-
+                    dict_for_xml.append(dict_r)
+    return dict_for_xml
 
 def get_rdf_dict():
     config = ConfigParser()
@@ -224,8 +225,8 @@ def get_rdf_dict():
         print('Working on r:', resource)
         resource_dict = create_dict_for_object_prop(resource, rdfGraph, generate_attributes_properties,
                                                     related_properties, xml_entities)
-        if resource_dict:
-            xml_entities.add(resource_dict['identifier'])
-            dict_for_xml.append(resource_dict)
+        for d in resource_dict:
+            xml_entities.add(d['identifier'])
+            dict_for_xml.append(d)
 
     return dict_for_xml

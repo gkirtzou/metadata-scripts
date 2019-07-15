@@ -163,7 +163,6 @@ if __name__ == '__main__':
     })
 
     for d in get_rdf_dict():
-        print(d['identifier'])
         if d['property'] == 'dataProp':
             try:
                 schema.append(etree.Comment(f'Definition for {d["name"]}'))

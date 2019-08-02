@@ -39,18 +39,18 @@ def resource_common_elements_to_dict(resource):
     return dict_r
 
 
-def create_dict_for_object_prop(resource, rdfGraph, generate_attributes_properties=[], related_properties=[],
-                                xml_entities=set()):
+def create_dict_for_object_prop(resource, rdfGraph, generate_attribute_properties=[], related_properties=[],
+                                class_exception=[], xml_entities=set()):
     dict_for_xml = []
     range = resource.value(rdflib.namespace.RDFS.range)
-    if range is not None:
+    if range is not None and str(range.identifier) not in class_exception :
         query_class_instances = "SELECT DISTINCT ?i WHERE { ?i a <" + range.identifier + ">} ORDER BY ASC(?i)"
         ci_res = rdfGraph.query(query_class_instances)
         # Case 2: CV the instances of the class range
         if len(ci_res) > 0:
             dict_r = resource_common_elements_to_dict(resource)
-            if str(resource.identifier) in generate_attributes_properties:
-                print('Case 7.2', resource)
+            if str(resource.identifier) in generate_attribute_properties:
+                print('Case 6.2', resource)
                 dict_r['property'] = 'attrProp'
             else:
                 print('Case 2', resource)
@@ -79,8 +79,8 @@ def create_dict_for_object_prop(resource, rdfGraph, generate_attributes_properti
                     dict_r['controlled_vocabulary'] = []
                     # Case 3: CV the instances of the classes, where classes are subclasses of class range
                     if len(ci_res) > 0:
-                        if str(resource.identifier) in generate_attributes_properties:
-                            print('Case 7.3', subclass)
+                        if str(resource.identifier) in generate_attribute_properties:
+                            print('Case 6.3', subclass)
                             dict_r['property'] = 'attrProp'
                         else:
                             print('Case 3', subclass, len(ci_res))
@@ -91,8 +91,8 @@ def create_dict_for_object_prop(resource, rdfGraph, generate_attributes_properti
                             dict_r['controlled_vocabulary'].append(resource_common_elements_to_dict(instance))
                     # Case 4:  Object properties with range with subclasses without instances
                     else:
-                        if str(resource.identifier) in generate_attributes_properties:
-                            print('Case 7.4', subclass)
+                        if str(resource.identifier) in generate_attribute_properties:
+                            print('Case 6.4', subclass)
                             dict_r['property'] = 'attrProp'
                         else:
                             print('Case 4', subclass)
@@ -104,8 +104,8 @@ def create_dict_for_object_prop(resource, rdfGraph, generate_attributes_properti
             # Case 5: for Object properties with range class without subclasses and without individuals
             else:
                 dict_r = resource_common_elements_to_dict(resource)
-                if str(resource.identifier) in generate_attributes_properties:
-                    print('Case 7.5', resource)
+                if str(resource.identifier) in generate_attribute_properties:
+                    print('Case 6.5', resource)
                     dict_r['property'] = 'attrProp'
                 else:
                     print('Case 5', resource)
@@ -117,6 +117,38 @@ def create_dict_for_object_prop(resource, rdfGraph, generate_attributes_properti
                 dict_r['controlled_vocabulary'] = []
                 if dict_r['identifier'] not in xml_entities:
                     dict_for_xml.append(dict_r)
+    elif range is not None:
+        print('Case 7', range)
+        dict_r = resource_common_elements_to_dict(range)
+        dict_r['property'] = 'objProp'
+        dict_r['type'] = range.qname()
+        dict_r['controlled_vocabulary'] = []
+        # Get instances
+        query_class_instances = "SELECT DISTINCT ?i WHERE { ?i a <" + range.identifier + ">} ORDER BY ASC(?i)"
+        ci_res = rdfGraph.query(query_class_instances)
+        if len(ci_res) > 0:
+            for ci in ci_res:
+                instance = rdfGraph.resource(ci['i'])
+                dict_r['controlled_vocabulary'].append(resource_common_elements_to_dict(instance))
+
+        # Get all subclasses
+        query_subclasses = "SELECT DISTINCT ?sc WHERE { ?sc rdfs:subClassOf* <" + range.identifier + ">} ORDER BY ASC(?sc)"
+        sc_res = rdfGraph.query(query_subclasses)
+        if len(sc_res) > 1:
+            print("Subclasses ", len(sc_res))
+            for sc in sc_res:
+                subclass = rdfGraph.resource(sc['sc'])
+                # Add subclass as CV
+                dict_r['controlled_vocabulary'].append(resource_common_elements_to_dict(subclass))
+                # Get subclass instances
+                query_class_instances = "SELECT DISTINCT ?i WHERE { ?i a <" + subclass.identifier + ">} ORDER BY ASC(?i)"
+                ci_res = rdfGraph.query(query_class_instances)
+                if len(ci_res) > 0:
+                    for ci in ci_res:
+                        instance = rdfGraph.resource(ci['i'])
+                        dict_r['controlled_vocabulary'].append(resource_common_elements_to_dict(instance))
+        if dict_r['identifier'] not in xml_entities:
+            dict_for_xml.append(dict_r)
     return dict_for_xml
 
 def get_rdf_dict():
@@ -132,7 +164,9 @@ def get_rdf_dict():
         domains = None
 
     related_properties = ast.literal_eval(config.get('Input', 'related_properties'))
-    generate_attributes_properties = ast.literal_eval(config.get('Input', 'generate_attributes_properties'))
+    generate_attribute_properties = ast.literal_eval(config.get('Input', 'generate_attribute_properties'))
+    class_exception = ast.literal_eval(config.get('Input', 'class_exception'))
+    print(class_exception)
 
     log_file = config.get('Output', 'log_file')
     sys.stdout = open(log_file, 'w')
@@ -222,9 +256,9 @@ def get_rdf_dict():
 
     for res in obj_properties_results:
         resource = rdfGraph.resource(res['p'])
-        print('Working on r:', resource)
-        resource_dict = create_dict_for_object_prop(resource, rdfGraph, generate_attributes_properties,
-                                                    related_properties, xml_entities)
+        print('Working on object property:', resource)
+        resource_dict = create_dict_for_object_prop(resource, rdfGraph, generate_attribute_properties,
+                                                    related_properties, class_exception, xml_entities)
         for d in resource_dict:
             xml_entities.add(d['identifier'])
             dict_for_xml.append(d)

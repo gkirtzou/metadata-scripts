@@ -144,6 +144,7 @@ def create_dict_for_object_prop(resource, rdfGraph, generate_attribute_propertie
                 query_class_instances = "SELECT DISTINCT ?i WHERE { ?i a <" + subclass.identifier + ">} ORDER BY ASC(?i)"
                 ci_res = rdfGraph.query(query_class_instances)
                 if len(ci_res) > 0:
+                    print('Subclass {} has #{} instances'.format(subclass.identifier, len(ci_res)))
                     for ci in ci_res:
                         instance = rdfGraph.resource(ci['i'])
                         dict_r['controlled_vocabulary'].append(resource_common_elements_to_dict(instance))

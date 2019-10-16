@@ -118,6 +118,7 @@ def create_dict_for_object_prop(resource, rdfGraph, generate_attribute_propertie
                 if dict_r['identifier'] not in xml_entities:
                     dict_for_xml.append(dict_r)
     elif range is not None:
+        # Get both instances and subclasses and their instances as cv
         print('Case 7', range)
         dict_r = resource_common_elements_to_dict(range)
         dict_r['property'] = 'objProp'
@@ -138,6 +139,9 @@ def create_dict_for_object_prop(resource, rdfGraph, generate_attribute_propertie
             print("Subclasses ", len(sc_res))
             for sc in sc_res:
                 subclass = rdfGraph.resource(sc['sc'])
+                if subclass == range:
+                    print('Skip myself {}'.format(subclass))
+                    continue
                 # Add subclass as CV
                 dict_r['controlled_vocabulary'].append(resource_common_elements_to_dict(subclass))
                 # Get subclass instances

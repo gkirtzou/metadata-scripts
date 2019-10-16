@@ -124,13 +124,6 @@ def create_dict_for_object_prop(resource, rdfGraph, generate_attribute_propertie
         dict_r['property'] = 'objProp'
         dict_r['type'] = range.qname()
         dict_r['controlled_vocabulary'] = []
-        # Get instances
-        query_class_instances = "SELECT DISTINCT ?i WHERE { ?i a <" + range.identifier + ">} ORDER BY ASC(?i)"
-        ci_res = rdfGraph.query(query_class_instances)
-        if len(ci_res) > 0:
-            for ci in ci_res:
-                instance = rdfGraph.resource(ci['i'])
-                dict_r['controlled_vocabulary'].append(resource_common_elements_to_dict(instance))
 
         # Get all subclasses
         query_subclasses = "SELECT DISTINCT ?sc WHERE { ?sc rdfs:subClassOf* <" + range.identifier + ">} ORDER BY ASC(?sc)"
@@ -139,12 +132,10 @@ def create_dict_for_object_prop(resource, rdfGraph, generate_attribute_propertie
             print("Subclasses ", len(sc_res))
             for sc in sc_res:
                 subclass = rdfGraph.resource(sc['sc'])
-                if subclass == range:
-                    print('Skip myself {}'.format(subclass))
-                    continue
-                # Add subclass as CV
-                dict_r['controlled_vocabulary'].append(resource_common_elements_to_dict(subclass))
-                # Get subclass instances
+                if subclass != range:
+                    # Add pure subclass as CV
+                    dict_r['controlled_vocabulary'].append(resource_common_elements_to_dict(subclass))
+                # Get subclass' instances
                 query_class_instances = "SELECT DISTINCT ?i WHERE { ?i a <" + subclass.identifier + ">} ORDER BY ASC(?i)"
                 ci_res = rdfGraph.query(query_class_instances)
                 if len(ci_res) > 0:

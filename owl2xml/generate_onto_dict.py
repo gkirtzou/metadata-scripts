@@ -43,7 +43,7 @@ def create_dict_for_object_prop(resource, rdfGraph, generate_attribute_propertie
                                 class_exception=[], xml_entities=set()):
     dict_for_xml = []
     range = resource.value(rdflib.namespace.RDFS.range)
-    if range is not None and str(range.identifier) not in class_exception :
+    if range is not None and str(range.identifier) not in class_exception:
         query_class_instances = "SELECT DISTINCT ?i WHERE { ?i a <" + range.identifier + ">} ORDER BY ASC(?i)"
         ci_res = rdfGraph.query(query_class_instances)
         # Case 2: CV the instances of the class range

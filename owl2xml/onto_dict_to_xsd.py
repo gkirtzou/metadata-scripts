@@ -126,7 +126,7 @@ def create_attribute(data):
     if data['controlled_vocabulary']:
         # build enumeration block
         simpe_type = etree.SubElement(element, '{' + xs + '}simpleType')
-        restriction = etree.SubElement(simpe_type, '{' + xs + '}restriction', attrib={'base': 'xs:string'})
+        restriction = etree.SubElement(simpe_type, '{' + xs + '}restriction', attrib={'base': 'xs:anyURI'})
         for cv in data['controlled_vocabulary']:
             enum = Enumeration(cv['identifier']).to_xsd()
             _create_annotation(enum, cv)

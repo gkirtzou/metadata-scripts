@@ -78,7 +78,9 @@ def create_data_prop(data, el_type=None):
             element_type = el_type.replace('xsd', 'xs')
     else:
         element_type = 'xs:string'
-    if el_type == 'rdf:langString':
+    #if el_type == 'rdf:langString':
+    #    element = etree.Element('{' + xs + '}element', attrib={'name': get_name(data['name'])})
+    if element_type == 'xs:string':
         element = etree.Element('{' + xs + '}element', attrib={'name': get_name(data['name'])})
     else:
         element = etree.Element('{' + xs + '}element', attrib={'name': get_name(data['name']),
@@ -86,13 +88,24 @@ def create_data_prop(data, el_type=None):
 
     _create_annotation(element, data)
 
-    # check if type is rdf:langString and create an extension
+    # check if type is rdf:langString and create an restriction of ms:langString with maxlength
     if el_type == 'rdf:langString':
         complex_type = etree.SubElement(element, '{' + xs + '}complexType')
         simple_content = etree.SubElement(complex_type, '{' + xs + '}simpleContent')
-        extension = etree.SubElement(simple_content, '{' + xs + '}extension', attrib={'base': 'xs:string'})
-        etree.SubElement(extension, '{' + xs + '}attribute',
-                         attrib={'ref': 'xml:lang'})
+       # extension = etree.SubElement(simple_content, '{' + xs + '}extension', attrib={'base': 'xs:string'})
+       # etree.SubElement(extension, '{' + xs + '}attribute',
+       #                  attrib={'ref': 'xml:lang'})
+        restriction = etree.SubElement(simple_content, '{' + xs + '}restriction', attrib={'base': 'ms:langString'})
+        etree.SubElement(restriction, '{' + xs + '}maxLength',
+                       attrib={'value': '300'})
+    elif element_type == 'xs:string':
+        simple_content = etree.SubElement(element,
+                                          '{' + xs + '}simpleType')
+        restriction = etree.SubElement(simple_content,
+                                       '{' + xs + '}restriction',
+                                       attrib={'base': 'xs:string'})
+        etree.SubElement(restriction, '{' + xs + '}maxLength',
+                         attrib={'value': '300'})
     return element
 
 
@@ -163,6 +176,7 @@ if __name__ == '__main__':
     })
 
     for d in get_rdf_dict():
+        print(d['name'])
         if d['property'] == 'dataProp':
             try:
                 schema.append(etree.Comment(f'Definition for {d["name"]}'))
@@ -173,6 +187,7 @@ if __name__ == '__main__':
 
         elif d['property'] == 'objProp':
             try:
+
                 schema.append(etree.Comment(f'Definition for {d["name"]}'))
                 if d['type']:
                     el = create_object_prop(d, el_type=d['type'])

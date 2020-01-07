@@ -1,6 +1,7 @@
+import csv
 import datetime
 import sys
-
+import ast
 from configparser import ConfigParser
 from lxml import etree
 
@@ -70,7 +71,7 @@ def get_name(name):
     # name.replace(':', '_')
 
 
-def create_data_prop(data, el_type=None):
+def create_data_prop(data, string_size_dict, el_type=None):
     if el_type:
         if el_type == 'rdf:langString':
             element_type = 'xs:string'
@@ -97,7 +98,7 @@ def create_data_prop(data, el_type=None):
        #                  attrib={'ref': 'xml:lang'})
         restriction = etree.SubElement(simple_content, '{' + xs + '}restriction', attrib={'base': 'ms:langString'})
         etree.SubElement(restriction, '{' + xs + '}maxLength',
-                       attrib={'value': '300'})
+                       attrib={'value': string_size_dict[data['identifier']]})
     elif element_type == 'xs:string':
         simple_content = etree.SubElement(element,
                                           '{' + xs + '}simpleType')
@@ -105,7 +106,7 @@ def create_data_prop(data, el_type=None):
                                        '{' + xs + '}restriction',
                                        attrib={'base': 'xs:string'})
         etree.SubElement(restriction, '{' + xs + '}maxLength',
-                         attrib={'value': '300'})
+                         attrib={'value': string_size_dict[data['identifier']]})
     return element
 
 
@@ -157,6 +158,10 @@ if __name__ == '__main__':
         'xs': xs,
         'omtd': omtd,
     }
+    filename_string_size = ast.literal_eval(config.get('Input', 'filename_string_size'))
+    with open(filename_string_size, mode='r') as infile:
+        reader = csv.reader(infile, delimiter='\t')
+        string_size_dict = dict((rows[0], rows[1]) for rows in reader)
 
     # Create ROOT element "schema"
     schema = etree.Element('{' + xs + '}schema', nsmap=NSMAP, attrib={
@@ -180,7 +185,7 @@ if __name__ == '__main__':
         if d['property'] == 'dataProp':
             try:
                 schema.append(etree.Comment(f'Definition for {d["name"]}'))
-                el = create_data_prop(d, el_type=d['type'])
+                el = create_data_prop(d, string_size_dict, el_type=d['type'])
                 schema.append(el)
             except KeyError:
                 pass

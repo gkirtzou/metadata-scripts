@@ -81,7 +81,7 @@ def create_data_prop(data, string_size_dict, el_type=None):
         element_type = 'xs:string'
     #if el_type == 'rdf:langString':
     #    element = etree.Element('{' + xs + '}element', attrib={'name': get_name(data['name'])})
-    if element_type == 'xs:string':
+    if element_type == 'xs:string' and data['identifier'] in string_size_dict:
         element = etree.Element('{' + xs + '}element', attrib={'name': get_name(data['name'])})
     else:
         element = etree.Element('{' + xs + '}element', attrib={'name': get_name(data['name']),
@@ -90,23 +90,34 @@ def create_data_prop(data, string_size_dict, el_type=None):
     _create_annotation(element, data)
 
     # check if type is rdf:langString and create an restriction of ms:langString with maxlength
-    if el_type == 'rdf:langString':
-        complex_type = etree.SubElement(element, '{' + xs + '}complexType')
-        simple_content = etree.SubElement(complex_type, '{' + xs + '}simpleContent')
-       # extension = etree.SubElement(simple_content, '{' + xs + '}extension', attrib={'base': 'xs:string'})
-       # etree.SubElement(extension, '{' + xs + '}attribute',
-       #                  attrib={'ref': 'xml:lang'})
-        restriction = etree.SubElement(simple_content, '{' + xs + '}restriction', attrib={'base': 'ms:langString'})
+    if el_type == 'rdf:langString' or (element_type == 'xs:string' and data['identifier'] in string_size_dict):
+        if el_type == 'rdf:langString':
+            complex_type = etree.SubElement(element, '{' + xs + '}complexType')
+            simple_content = etree.SubElement(complex_type, '{' + xs + '}simpleContent')
+        else:
+            simple_content = etree.SubElement(element,'{' + xs + '}simpleType')
+        # extension = etree.SubElement(simple_content, '{' + xs + '}extension', attrib={'base': 'xs:string'})
+        # etree.SubElement(extension, '{' + xs + '}attribute',
+        #                  attrib={'ref': 'xml:lang'})
+
+        if el_type == 'rdf:langString':
+           restriction = etree.SubElement(simple_content, '{' + xs + '}restriction', attrib={'base': 'ms:langString'})
+        else:
+            restriction = etree.SubElement(simple_content, '{' + xs + '}restriction',
+                                           attrib={'base': 'xs:string'})
         etree.SubElement(restriction, '{' + xs + '}maxLength',
-                       attrib={'value': string_size_dict[data['identifier']]})
-    elif element_type == 'xs:string':
-        simple_content = etree.SubElement(element,
-                                          '{' + xs + '}simpleType')
-        restriction = etree.SubElement(simple_content,
-                                       '{' + xs + '}restriction',
-                                       attrib={'base': 'xs:string'})
-        etree.SubElement(restriction, '{' + xs + '}maxLength',
-                         attrib={'value': string_size_dict[data['identifier']]})
+                  attrib={'value': string_size_dict[data['identifier']]})
+
+    #elif element_type == 'xs:string':
+    #    simple_content = etree.SubElement(element,
+    #                                      '{' + xs + '}simpleType')
+    #    restriction = etree.SubElement(simple_content,
+    #                                   '{' + xs + '}restriction',
+    #                                   attrib={'base': 'xs:string'})
+    #
+    #    if data['identifier'] in string_size_dict:
+    #        etree.SubElement(restriction, '{' + xs + '}maxLength',
+    #                     attrib={'value': string_size_dict[data['identifier']]})
     return element
 
 

@@ -6,7 +6,7 @@ import ast
 from configparser import ConfigParser
 from lxml import etree
 
-from owl2xml.generate_onto_dict import get_rdf_dict
+from owl2xml.parse_rdf_to_dict import get_rdf_dict
 from xsd.namespaces import ms, xs, xml, omtd
 from xsd.xsd import Enumeration
 
@@ -76,6 +76,8 @@ def create_data_prop(data, string_size_dict, el_type=None):
     if el_type:
         if el_type == 'rdf:langString':
             element_type = 'xs:string'
+        elif el_type == 'xsd:anyURI':
+            element_type = 'ms:httpURI'
         else:
             element_type = el_type.replace('xsd', 'xs')
     else:
@@ -136,7 +138,7 @@ def create_object_prop(data, el_type=None):
     if data['controlled_vocabulary']:
         # build enumeration block
         simpe_type = etree.SubElement(element, '{' + xs + '}simpleType')
-        restriction = etree.SubElement(simpe_type, '{' + xs + '}restriction', attrib={'base': 'xs:anyURI'})
+        restriction = etree.SubElement(simpe_type, '{' + xs + '}restriction', attrib={'base': 'ms:httpURI'})
         for cv in data['controlled_vocabulary']:
             enum = Enumeration(cv['identifier']).to_xsd()
             _create_annotation(enum, cv)
@@ -152,7 +154,7 @@ def create_attribute(data):
     if data['controlled_vocabulary']:
         # build enumeration block
         simpe_type = etree.SubElement(element, '{' + xs + '}simpleType')
-        restriction = etree.SubElement(simpe_type, '{' + xs + '}restriction', attrib={'base': 'xs:anyURI'})
+        restriction = etree.SubElement(simpe_type, '{' + xs + '}restriction', attrib={'base': 'ms:httpURI'})
         for cv in data['controlled_vocabulary']:
             enum = Enumeration(cv['identifier']).to_xsd()
             _create_annotation(enum, cv)

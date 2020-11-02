@@ -11,15 +11,23 @@ from xsd.namespaces import ms, omtd, xs, xml
 
 
 def recursiveFunction(element, uriResource, rdfGraph, alreadySeen):
+    print("Working resource is " + uriResource)
+    # Ignore duplicated due to multiple inheritance
     if uriResource in alreadySeen:
         print('Already seen ' + uriResource)
         return
-
     alreadySeen.append(uriResource)
+
     resource = rdfGraph.resource(uriResource)
+
+    # Ignore deprecated
+    if resource.value(rdflib.OWL.deprecated) is not None and \
+       resource.value(rdflib.OWL.deprecated).value:
+        print("Deprecated resource " + uriResource)
+        return
+
     parentResources = resource.objects(rdflib.RDFS.subClassOf)
 
-    print("Working resource is " + uriResource)
     resource_dict = resource_common_elements_to_dict(resource)
     # for parent in parentResources:
     #    print "and has parent " + parent.identifier
@@ -111,6 +119,11 @@ if __name__ == '__main__':
     for (k, v) in instance_map:
         print('{} is mapped to resources {}'.format(k, v))
         resource = rdfGraph.resource(v)
+        # Ignore deprecated
+        if resource.value(rdflib.OWL.deprecated) is not None and \
+                resource.value(rdflib.OWL.deprecated).value:
+            print("Deprecated resource " + resource.identifier)
+            continue
         dict_resource = create_dict_for_object_prop(resource, rdfGraph)
         for d in dict_resource:
             schema.append(etree.Comment(f'Definition for {d["name"]}'))

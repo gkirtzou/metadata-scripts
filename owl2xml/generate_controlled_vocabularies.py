@@ -34,12 +34,12 @@ def recursiveFunction(element, uriResource, rdfGraph, alreadySeen):
     _create_annotation(enumeration, resource_dict)
 
     subclasses = resource.subjects(rdflib.RDFS.subClassOf)
-
-    for c in subclasses:
+    subclasses_list = sorted(c.identifier for c in subclasses)
+    for c in subclasses_list:
         # Ignore myself resource
-        if c.identifier == resource.identifier:
+        if c == resource.identifier:
             continue
-        recursiveFunction(element, c.identifier, rdfGraph, alreadySeen)
+        recursiveFunction(element, c, rdfGraph, alreadySeen)
     return
 
 
@@ -101,8 +101,10 @@ if __name__ == '__main__':
         )
         restriction.attrib[etree.QName('base')] = etree.QName(xs, 'anyURI')
         subclasses = resource.subjects(rdflib.RDFS.subClassOf)
-        for subcl in subclasses:
-            recursiveFunction(restriction, subcl.identifier, rdfGraph, [])
+        subclasses_list = sorted(c.identifier for c in subclasses)
+        alreadySeen = []
+        for subcl in subclasses_list:
+            recursiveFunction(restriction, subcl, rdfGraph, alreadySeen)
         schema.append(element)
 
     instance_map = config.items('Instances')

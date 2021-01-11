@@ -1,3 +1,16 @@
+jsonpickle==1.4.2
 lxml==4.1.1
+pipdeptree==2.0.0
+  - pip [required: >=6.0.0, installed: 20.0.2]
+pkg-resources==0.0.0
 rdflib==5.0.0
-jsonpickle
+  - isodate [required: Any, installed: 0.6.0]
+    - six [required: Any, installed: 1.15.0]
+  - pyparsing [required: Any, installed: 2.4.7]
+  - six [required: Any, installed: 1.15.0]
+requests==2.25.1
+  - certifi [required: >=2017.4.17, installed: 2020.12.5]
+  - chardet [required: >=3.0.2,<5, installed: 4.0.0]
+  - idna [required: >=2.5,<3, installed: 2.10]
+  - urllib3 [required: >=1.21.1,<1.27, installed: 1.26.2]
+setuptools==44.0.0

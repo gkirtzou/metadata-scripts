@@ -73,6 +73,7 @@ def get_name(name):
 
 
 def create_data_prop(data, string_size_dict, el_type=None):
+    print(f'Create data property for {d["name"]}')
     if el_type:
         if el_type == 'rdf:langString':
             element_type = 'xs:string'
@@ -125,6 +126,7 @@ def create_data_prop(data, string_size_dict, el_type=None):
 
 
 def create_object_prop(data, el_type=None):
+    print(f'Create object property for {d["name"]}')
     if data['controlled_vocabulary']:
         element = etree.Element('{' + xs + '}element', attrib={'name': get_name(data['name'])})
     else:
@@ -136,6 +138,7 @@ def create_object_prop(data, el_type=None):
     _create_annotation(element, data)
 
     if data['controlled_vocabulary']:
+        print('Has controlled vocabulary')
         # build enumeration block
         simpe_type = etree.SubElement(element, '{' + xs + '}simpleType')
         restriction = etree.SubElement(simpe_type, '{' + xs + '}restriction', attrib={'base': 'ms:httpURI'})
@@ -148,10 +151,12 @@ def create_object_prop(data, el_type=None):
 
 
 def create_attribute(data):
+    print(f'Create attribute property for {d["name"]}')
     element = etree.Element('{' + xs + '}attribute', attrib={'name': get_name(data['name'])})
     _create_annotation(element, data)
 
     if data['controlled_vocabulary']:
+        print('Has controlled vocabulary')
         # build enumeration block
         simpe_type = etree.SubElement(element, '{' + xs + '}simpleType')
         restriction = etree.SubElement(simpe_type, '{' + xs + '}restriction', attrib={'base': 'ms:httpURI'})
@@ -194,8 +199,8 @@ if __name__ == '__main__':
         'schemaLocation': 'http://www.w3.org/2001/xml.xsd'
     })
 
-    for d in get_rdf_dict():
-        print(d['name'])
+    dict_to_xml = get_rdf_dict()
+    for d in dict_to_xml:
         if d['property'] == 'dataProp':
             try:
                 schema.append(etree.Comment(f'Definition for {d["name"]}'))

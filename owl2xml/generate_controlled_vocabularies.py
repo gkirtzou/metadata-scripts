@@ -7,7 +7,7 @@ from configparser import ConfigParser
 
 from owl2xml.parse_rdf_to_dict import resource_common_elements_to_dict, create_dict_for_object_prop
 from owl2xml.generate_xsd_elements import _create_annotation, get_name, create_object_prop
-from xsd.namespaces import ms, omtd, xs, xml
+from owl2xml.xsd.namespaces import ms, omtd, xs, xml
 
 
 def recursiveFunction(element, uriResource, rdfGraph, alreadySeen):

@@ -7,8 +7,8 @@ from configparser import ConfigParser
 from lxml import etree
 
 from owl2xml.parse_rdf_to_dict import get_rdf_dict
-from xsd.namespaces import ms, xs, xml, omtd
-from xsd.xsd import Enumeration
+from owl2xml.xsd.namespaces import ms, xs, xml, omtd
+from owl2xml.xsd.xsd import Enumeration
 
 
 def _tuple_list_to_child_element_multi(parent, item, name, prefix=None):

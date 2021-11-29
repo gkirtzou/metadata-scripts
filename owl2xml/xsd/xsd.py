@@ -1,6 +1,6 @@
 from lxml import etree
 
-from xsd.namespaces import xs
+from owl2xml.xsd.namespaces import xs
 
 
 class XSDBlock:

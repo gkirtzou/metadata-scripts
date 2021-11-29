@@ -109,8 +109,7 @@ def create_data_prop(data, string_size_dict, el_type=None):
         else:
             restriction = etree.SubElement(simple_content, '{' + xs + '}restriction',
                                            attrib={'base': 'xs:string'})
-        etree.SubElement(restriction, '{' + xs + '}maxLength',
-                  attrib={'value': string_size_dict[data['identifier']]})
+        etree.SubElement(restriction, '{' + xs + '}maxLength', attrib={'value': string_size_dict[data['identifier']]})
 
     #elif element_type == 'xs:string':
     #    simple_content = etree.SubElement(element,

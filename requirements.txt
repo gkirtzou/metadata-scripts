@@ -13,4 +13,4 @@ requests==2.25.1
   - chardet [required: >=3.0.2,<5, installed: 4.0.0]
   - idna [required: >=2.5,<3, installed: 2.10]
   - urllib3 [required: >=1.21.1,<1.27, installed: 1.26.2]
-setuptools==44.0.0
+setuptools==65.5.1
